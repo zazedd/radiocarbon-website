@@ -1,1 +1,0 @@
-{"email":"leo@leo.leo","hashed_password":"KHSb5dZ89Lj4R8BtwbvEMDI1LKbbP9FzLGsfyUAMn5Eb1/55Drr9QTgiREyJqmTI3XT4O/JQd66AOTM478snbQ==","full_name":"leo","account_type":"Admin"}

@@ -1,0 +1,6 @@
+(library
+ (name pages)
+ (package radiocarbon_website)
+ (libraries dream tyxml radiocarbon_lib)
+ (preprocess
+  (pps tyxml-ppx)))
