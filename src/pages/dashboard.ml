@@ -10,6 +10,16 @@ let rec indent_from_counter n acc =
   if n = 0 then acc
   else indent_from_counter (n - 1) (Html.space () :: Html.space () :: acc)
 
+let no_more_items_no_btn () =
+  let open Tyxml.Html in
+  div
+    ~a:[ a_class [ "w-dyn-empty" ]; a_style "background-color: #d7d7d7" ]
+    [
+      div
+        ~a:[ a_class [ "no-more-container" ] ]
+        [ span [ "No more items found." |> txt ] ];
+    ]
+
 let no_more_items path ~color_counter ~indent_counter =
   let open Tyxml.Html in
   div
@@ -157,12 +167,13 @@ let dashboard_files _request (inputs : Files.Folder.t) =
       begin
         match inputs with
         | Folder { files; _ } ->
-            files
-            |> List.sort (fun a b -> Files.Folder.compare b a)
-            |> List.map (fun files -> tree_to_html files 0 ())
+            if List.length files = 1 then [ no_more_items_no_btn () ]
+            else
+              files
+              |> List.sort (fun a b -> Files.Folder.compare b a)
+              |> List.map (fun files -> tree_to_html files 0 ())
         | File _ -> assert false
       end;
-    no_more_items "" ~color_counter:0 ~indent_counter:1;
   ]
 
 let dashboard _request (user : User.t_no_pw) =
@@ -204,6 +215,22 @@ let dashboard _request (user : User.t_no_pw) =
                                     ~a:[ a_class [ "panel-filter" ] ]
                                     [ txt "for calibration" ];
                                 ];
+                              a
+                                ~a:
+                                  [
+                                    a_href "/dashboard/add-file/";
+                                    a_class [ "edit-button"; "w-button" ];
+                                    a_style "padding-bottom: 14px;";
+                                  ]
+                                [ txt "ADD FILE" ];
+                              a
+                                ~a:
+                                  [
+                                    a_href "/dashboard/add-folder/";
+                                    a_class [ "edit-button"; "w-button" ];
+                                    a_style "padding-bottom: 14px;";
+                                  ]
+                                [ txt "ADD FOLDER" ];
                               div
                                 ~a:[ a_class [ "panel-count-wrap" ] ]
                                 [
@@ -231,7 +258,7 @@ let dashboard _request (user : User.t_no_pw) =
                 ~a:[ a_class [ "dashboard-row"; "h25" ] ]
                 [
                   div
-                    ~a:[ a_class [ "db-panel"; "w37-5" ] ]
+                    ~a:[ a_class [ "db-panel"; "w75" ] ]
                     [
                       div
                         ~a:[ a_class [ "db-panel-container" ] ]
@@ -267,160 +294,151 @@ let dashboard _request (user : User.t_no_pw) =
                             ];
                           div
                             ~a:[ a_class [ "panel-body" ] ]
-                            [
-                              div
-                                ~a:[ a_class [ "w-dyn-list" ] ]
-                                [
-                                  div
-                                    ~a:[ a_class [ "w-dyn-empty" ] ]
-                                    [ div [ txt "No more items found." ] ];
-                                ];
-                            ];
+                            [ no_more_items_no_btn () ];
                         ];
                     ];
-                  div
-                    ~a:[ a_class [ "db-panel" ] ]
-                    [
-                      div
-                        ~a:[ a_class [ "db-panel-container" ] ]
-                        [
-                          div
-                            ~a:[ a_class [ "panel-head" ] ]
-                            [
-                              div
-                                ~a:[ a_class [ "panel-icon-wrap" ] ]
-                                [
-                                  img ~alt:""
-                                    ~src:"/assets/icons/three_lines.svg"
-                                    ~a:[ a_class [ "panel-head-img" ] ]
-                                    ();
-                                ];
-                              div
-                                ~a:[ a_class [ "panel-name-wrap" ] ]
-                                [
-                                  div
-                                    ~a:[ a_class [ "panel-name" ] ]
-                                    [ txt "SORY by GENRE" ];
-                                ];
-                            ];
-                          div
-                            ~a:[ a_class [ "panel-body" ] ]
-                            [
-                              div
-                                ~a:[ a_class [ "panel-list" ] ]
-                                [
-                                  a
-                                    ~a:
-                                      [
-                                        a_href "";
-                                        a_class
-                                          [
-                                            "panel-row"; "h30"; "w-inline-block";
-                                          ];
-                                      ]
-                                    [
-                                      div
-                                        ~a:[ a_class [ "panel-col" ] ]
-                                        [
-                                          div
-                                            ~a:[ a_class [ "panel-col-text" ] ]
-                                            [ txt "Photography" ];
-                                        ];
-                                    ];
-                                  a
-                                    ~a:
-                                      [
-                                        a_href "";
-                                        a_class
-                                          [
-                                            "panel-row"; "h30"; "w-inline-block";
-                                          ];
-                                      ]
-                                    [
-                                      div
-                                        ~a:[ a_class [ "panel-col" ] ]
-                                        [
-                                          div
-                                            ~a:[ a_class [ "panel-col-text" ] ]
-                                            [ txt "Graphic" ];
-                                        ];
-                                    ];
-                                  a
-                                    ~a:
-                                      [
-                                        a_href "";
-                                        a_class
-                                          [
-                                            "panel-row"; "h30"; "w-inline-block";
-                                          ];
-                                      ]
-                                    [
-                                      div
-                                        ~a:[ a_class [ "panel-col" ] ]
-                                        [
-                                          div
-                                            ~a:[ a_class [ "panel-col-text" ] ]
-                                            [ txt "Object" ];
-                                        ];
-                                    ];
-                                  a
-                                    ~a:
-                                      [
-                                        a_href "";
-                                        a_class
-                                          [
-                                            "panel-row"; "h30"; "w-inline-block";
-                                          ];
-                                      ]
-                                    [
-                                      div
-                                        ~a:[ a_class [ "panel-col" ] ]
-                                        [
-                                          div
-                                            ~a:[ a_class [ "panel-col-text" ] ]
-                                            [ txt "Painting" ];
-                                        ];
-                                    ];
-                                  a
-                                    ~a:
-                                      [
-                                        a_href "";
-                                        a_class
-                                          [
-                                            "panel-row"; "h30"; "w-inline-block";
-                                          ];
-                                      ]
-                                    [
-                                      div
-                                        ~a:[ a_class [ "panel-col" ] ]
-                                        [
-                                          div
-                                            ~a:[ a_class [ "panel-col-text" ] ]
-                                            [ txt "Drawing" ];
-                                        ];
-                                    ];
-                                  a
-                                    ~a:
-                                      [
-                                        a_href "";
-                                        a_class
-                                          [
-                                            "panel-row"; "h30"; "w-inline-block";
-                                          ];
-                                      ]
-                                    [
-                                      div
-                                        ~a:[ a_class [ "panel-col" ] ]
-                                        [
-                                          div
-                                            ~a:[ a_class [ "panel-col-text" ] ]
-                                            [ txt "Collage" ];
-                                        ];
-                                    ];
-                                ];
-                            ];
-                        ];
-                    ];
+                  (* div *)
+                  (*   ~a:[ a_class [ "db-panel" ] ] [*)
+                  (* div *)
+                  (*   ~a:[ a_class [ "db-panel-container" ] ] *)
+                  (*   [ *)
+                  (* div *)
+                  (*   ~a:[ a_class [ "panel-head" ] ] *)
+                  (*   [ *)
+                  (*     div *)
+                  (*       ~a:[ a_class [ "panel-icon-wrap" ] ] *)
+                  (*       [ *)
+                  (*         img ~alt:"" *)
+                  (*           ~src:"/assets/icons/three_lines.svg" *)
+                  (*           ~a:[ a_class [ "panel-head-img" ] ] *)
+                  (*           (); *)
+                  (*       ]; *)
+                  (*     div *)
+                  (*       ~a:[ a_class [ "panel-name-wrap" ] ] *)
+                  (*       [ *)
+                  (*         div *)
+                  (*           ~a:[ a_class [ "panel-name" ] ] *)
+                  (*           [ txt "SORY by GENRE" ]; *)
+                  (*       ]; *)
+                  (*   ]; *)
+                  (* div *)
+                  (*   ~a:[ a_class [ "panel-body" ] ] *)
+                  (*   [ *)
+                  (*     div *)
+                  (*       ~a:[ a_class [ "panel-list" ] ] *)
+                  (*       [ *)
+                  (*         a *)
+                  (*           ~a: *)
+                  (*             [ *)
+                  (*               a_href ""; *)
+                  (*               a_class *)
+                  (*                 [ *)
+                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
+                  (*                 ]; *)
+                  (*             ] *)
+                  (*           [ *)
+                  (*             div *)
+                  (*               ~a:[ a_class [ "panel-col" ] ] *)
+                  (*               [ *)
+                  (*                 div *)
+                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
+                  (*                   [ txt "Photography" ]; *)
+                  (*               ]; *)
+                  (*           ]; *)
+                  (*         a *)
+                  (*           ~a: *)
+                  (*             [ *)
+                  (*               a_href ""; *)
+                  (*               a_class *)
+                  (*                 [ *)
+                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
+                  (*                 ]; *)
+                  (*             ] *)
+                  (*           [ *)
+                  (*             div *)
+                  (*               ~a:[ a_class [ "panel-col" ] ] *)
+                  (*               [ *)
+                  (*                 div *)
+                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
+                  (*                   [ txt "Graphic" ]; *)
+                  (*               ]; *)
+                  (*           ]; *)
+                  (*         a *)
+                  (*           ~a: *)
+                  (*             [ *)
+                  (*               a_href ""; *)
+                  (*               a_class *)
+                  (*                 [ *)
+                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
+                  (*                 ]; *)
+                  (*             ] *)
+                  (*           [ *)
+                  (*             div *)
+                  (*               ~a:[ a_class [ "panel-col" ] ] *)
+                  (*               [ *)
+                  (*                 div *)
+                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
+                  (*                   [ txt "Object" ]; *)
+                  (*               ]; *)
+                  (*           ]; *)
+                  (*         a *)
+                  (*           ~a: *)
+                  (*             [ *)
+                  (*               a_href ""; *)
+                  (*               a_class *)
+                  (*                 [ *)
+                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
+                  (*                 ]; *)
+                  (*             ] *)
+                  (*           [ *)
+                  (*             div *)
+                  (*               ~a:[ a_class [ "panel-col" ] ] *)
+                  (*               [ *)
+                  (*                 div *)
+                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
+                  (*                   [ txt "Painting" ]; *)
+                  (*               ]; *)
+                  (*           ]; *)
+                  (*         a *)
+                  (*           ~a: *)
+                  (*             [ *)
+                  (*               a_href ""; *)
+                  (*               a_class *)
+                  (*                 [ *)
+                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
+                  (*                 ]; *)
+                  (*             ] *)
+                  (*           [ *)
+                  (*             div *)
+                  (*               ~a:[ a_class [ "panel-col" ] ] *)
+                  (*               [ *)
+                  (*                 div *)
+                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
+                  (*                   [ txt "Drawing" ]; *)
+                  (*               ]; *)
+                  (*           ]; *)
+                  (*         a *)
+                  (*           ~a: *)
+                  (*             [ *)
+                  (*               a_href ""; *)
+                  (*               a_class *)
+                  (*                 [ *)
+                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
+                  (*                 ]; *)
+                  (*             ] *)
+                  (*           [ *)
+                  (*             div *)
+                  (*               ~a:[ a_class [ "panel-col" ] ] *)
+                  (*               [ *)
+                  (*                 div *)
+                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
+                  (*                   [ txt "Collage" ]; *)
+                  (*               ]; *)
+                  (*           ]; *)
+                  (*       ]; *)
+                  (*     ]; *)
+                  (* ]; *)
+                  (* ]; *)
                 ];
             ];
         ];

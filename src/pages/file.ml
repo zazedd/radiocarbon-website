@@ -20,7 +20,7 @@ let output_file (name, p) =
     ]
 
 let output_pdf name =
-  let date, typ, p = name in
+  let typ, date, p = name in
   li
     ~a:[ a_role [ "listitem" ]; a_class [ "pdf-list-item" ] ]
     [

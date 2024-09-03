@@ -64,6 +64,8 @@ end = struct
     pdfs : (string * string * Fpath.t) list;
   }
 
+  let compare_pdfs (_, date1, _) (_, date2, _) = compare date1 date2
+
   let is_output f1 f2 =
     let input_ext = Fpath.get_ext f1 and output_ext = Fpath.get_ext f2 in
     if input_ext = output_ext then
@@ -79,18 +81,20 @@ end = struct
       input_name = output_name
     else false
 
+  (* inputname.script.date.csv *)
   let script_name fpath out_file =
     let out_path = Fpath.(fpath // out_file) in
     let script_dot = out_file |> Fpath.rem_ext |> Fpath.get_ext in
     (String.sub script_dot 1 (String.length script_dot - 1), out_path)
 
+  (* inputname.script.date.pdf *)
   let pdf_name fpath out_file =
     let out_path = Fpath.(fpath // out_file) in
     let date_dot = out_file |> Fpath.rem_ext |> Fpath.get_ext
     and typ_dot = out_file |> Fpath.rem_ext |> Fpath.rem_ext |> Fpath.get_ext in
     let date = String.sub date_dot 1 (String.length date_dot - 1)
     and typ = String.sub typ_dot 1 (String.length typ_dot - 1) in
-    (date, typ, out_path)
+    (typ, date, out_path)
 
   let collect_list p (acc : t) (path, t) =
     if path = "" then acc |> Lwt.return
@@ -127,6 +131,7 @@ end = struct
     Lwt_list.fold_left_s (collect_list out_path)
       { name; content; outputs = []; pdfs = [] }
       l
+    >|= fun file -> { file with pdfs = List.sort compare_pdfs file.pdfs }
 end
 
 module Folder : sig

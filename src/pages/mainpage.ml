@@ -31,24 +31,22 @@ let mainpage _request =
                             a_href "#";
                             a_class [ "navbar-brand-three"; "w-nav-brand" ];
                           ]
-                        [
-                          img ~src:"assets/ephetarides.png" ~alt:""
-                            ~a:
-                              [
-                                a_width 240;
-                                a_img_sizes [ "(max-width: 479px) 80vw, 240px" ];
-                                a_srcset
-                                  [
-                                    `Url_width
-                                      ("assets/ephetarides-p-500.png", 500);
-                                    `Url_width
-                                      ("assets/ephetarides-p-800.png", 800);
-                                    `Url_width ("assets/ephetarides.png", 822);
-                                  ];
-                                a_class [ "image" ];
-                              ]
-                            ();
-                        ];
+                        [ (* img ~src:"assets/ephetarides.png" ~alt:"" *)
+                          (*   ~a: *)
+                          (*     [ *)
+                          (*       a_width 240; *)
+                          (*       a_img_sizes [ "(max-width: 479px) 80vw, 240px" ]; *)
+                          (*       a_srcset *)
+                          (*         [ *)
+                          (*           `Url_width *)
+                          (*             ("assets/ephetarides-p-500.png", 500); *)
+                          (*           `Url_width *)
+                          (*             ("assets/ephetarides-p-800.png", 800); *)
+                          (*           `Url_width ("assets/ephetarides.png", 822); *)
+                          (*         ]; *)
+                          (*       a_class [ "image" ]; *)
+                          (*     ] *)
+                          (*   (); *) ];
                       nav
                         ~a:
                           [
