@@ -44,7 +44,7 @@ module File : sig
   type t = {
     name : Fpath.t;
     content : string;
-    outputs : (string * Fpath.t) list;
+    outputs : (string * string * Fpath.t) list;
     pdfs : (string * string * Fpath.t) list;
   }
 
@@ -55,16 +55,16 @@ module File : sig
     name:string ->
     t Lwt.t
 end = struct
-  (* outputs -> (script name, file path) list *)
+  (* outputs -> (script name, date, file path) list *)
   (* pdfs -> (type of pdf, date, file path) list *)
   type t = {
     name : Fpath.t;
     content : string;
-    outputs : (string * Fpath.t) list;
+    outputs : (string * string * Fpath.t) list;
     pdfs : (string * string * Fpath.t) list;
   }
 
-  let compare_pdfs (_, date1, _) (_, date2, _) = compare date1 date2
+  let compare_output (_, date1, _) (_, date2, _) = compare date1 date2
 
   let is_output f1 f2 =
     let input_ext = Fpath.get_ext f1 and output_ext = Fpath.get_ext f2 in
@@ -84,10 +84,15 @@ end = struct
   (* inputname.script.date.csv *)
   let script_name fpath out_file =
     let out_path = Fpath.(fpath // out_file) in
-    let script_dot = out_file |> Fpath.rem_ext |> Fpath.get_ext in
-    (String.sub script_dot 1 (String.length script_dot - 1), out_path)
+    let date_dot = out_file |> Fpath.rem_ext |> Fpath.get_ext in
+    let script_dot =
+      out_file |> Fpath.rem_ext |> Fpath.rem_ext |> Fpath.get_ext
+    in
+    let date = String.sub date_dot 1 (String.length date_dot - 1) in
+    let script = String.sub script_dot 1 (String.length script_dot - 1) in
+    (script, date, out_path)
 
-  (* inputname.script.date.pdf *)
+  (* inputname.script.type.date.pdf *)
   let pdf_name fpath out_file =
     let out_path = Fpath.(fpath // out_file) in
     let date_dot = out_file |> Fpath.rem_ext |> Fpath.get_ext
@@ -131,7 +136,12 @@ end = struct
     Lwt_list.fold_left_s (collect_list out_path)
       { name; content; outputs = []; pdfs = [] }
       l
-    >|= fun file -> { file with pdfs = List.sort compare_pdfs file.pdfs }
+    >|= fun file ->
+    {
+      file with
+      outputs = List.sort compare_output file.outputs;
+      pdfs = List.sort compare_output file.pdfs;
+    }
 end
 
 module Folder : sig

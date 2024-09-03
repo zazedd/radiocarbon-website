@@ -308,7 +308,7 @@ let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
         in
         Files.Store.Tree.remove root_tree in_path >>= fun tree ->
         Lwt_list.fold_left_s
-          (fun tree (_, output_path) ->
+          (fun tree (_, _, output_path) ->
             Format.printf "%s@." (output_path |> Fpath.to_string);
             let output_path =
               outputs

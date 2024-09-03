@@ -1,7 +1,7 @@
 open Website_lib
 open Tyxml.Html
 
-let output_file (name, p) =
+let output_file (name, date, p) =
   li
     ~a:[ a_role [ "listitem" ] ]
     [
@@ -16,11 +16,14 @@ let output_file (name, p) =
           div
             ~a:[ a_class [ "card-info-text"; "bold"; "output-file-name" ] ]
             [ txt name ];
+          div ~a:[ a_class [ "card-lable" ] ] [ txt "DATE" ];
+          div
+            ~a:[ a_class [ "card-info-text"; "bold"; "output-file-name" ] ]
+            [ txt date ];
         ];
     ]
 
-let output_pdf name =
-  let typ, date, p = name in
+let output_pdf (typ, date, p) =
   li
     ~a:[ a_role [ "listitem" ]; a_class [ "pdf-list-item" ] ]
     [

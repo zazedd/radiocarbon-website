@@ -141,7 +141,7 @@ module Post = struct
   let register request : Dream.response Lwt.t =
     match%lwt Dream.form request with
     | `Ok [ ("email", email); ("name", full_name); ("password", passwd) ] -> (
-        User_db.user_store email passwd full_name `Admin >>= function
+        User_db.user_store email passwd full_name `User >>= function
         | Ok user ->
             let unopw = User.user_no_pw user |> User.marshal in
             let%lwt () = Dream.invalidate_session request in
