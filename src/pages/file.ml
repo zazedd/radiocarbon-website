@@ -1,4 +1,4 @@
-open Radiocarbon_lib
+open Website_lib
 open Tyxml.Html
 
 let output_file (name, p) =

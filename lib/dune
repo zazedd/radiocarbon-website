@@ -1,6 +1,6 @@
 (library
- (name radiocarbon_lib)
- (public_name radiocarbon_website)
+ (name website_lib)
+ (public_name website_lib)
  (libraries pbkdf ohex irmin.unix irmin-git.unix lwt)
  (preprocess
   (pps lwt_ppx ppx_yojson_conv ppx_irmin)))

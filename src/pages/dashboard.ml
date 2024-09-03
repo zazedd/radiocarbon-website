@@ -1,4 +1,4 @@
-open Radiocarbon_lib
+open Website_lib
 open Tyxml
 
 let color_from_counter n =

@@ -1,6 +1,6 @@
 (lang dune 3.15)
 
-(name radiocarbon_website)
+(name website)
 
 (generate_opam_files true)
 
@@ -16,7 +16,15 @@
 (documentation https://url/to/documentation)
 
 (package
- (name radiocarbon_website)
+ (name website)
+ (synopsis "A short synopsis")
+ (description "A longer description")
+ (depends ocaml dune ppx_yojson_conv)
+ (tags
+  (topics "to describe" your project)))
+
+(package
+ (name website_lib)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends ocaml dune ppx_yojson_conv)

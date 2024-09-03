@@ -1,0 +1,6 @@
+(library
+ (name pages)
+ (package website)
+ (libraries dream tyxml website_lib)
+ (preprocess
+  (pps tyxml-ppx)))

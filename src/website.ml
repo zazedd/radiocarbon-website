@@ -1,6 +1,10 @@
-let () =
-  Dream.run ~port:8081 ~tls:true
-  @@ Dream.logger @@ Dream.memory_sessions
+open Lwt.Infix
+
+let run handler : ('a, [ `Msg of string ]) result Lwt.t =
+  Dream.serve ~port:8081 handler >|= fun () -> Ok ()
+
+let handler =
+  Dream.logger @@ Dream.memory_sessions
   @@ Dream.router
        [
          Dream.get "/" @@ Handlers.Get.mainpage;

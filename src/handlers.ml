@@ -1,6 +1,6 @@
 open Lwt.Infix
 open Lwt.Syntax
-open Radiocarbon_lib
+open Website_lib
 
 let tyxml_list_to_string html =
   List.map (Format.asprintf "%a" (Tyxml.Html.pp_elt ())) html

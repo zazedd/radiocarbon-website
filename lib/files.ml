@@ -7,7 +7,7 @@ let addr =
        "git@github.com:zazedd/inputs-outputs-R14C.git")
 
 let key =
-  let x = open_in "env/sk.pem" |> input_line |> String.trim in
+  let x = open_in "env/github_sk.pem" |> input_line |> String.trim in
   x |> Awa.Keys.of_string |> function
   | Ok s -> s
   | Error (`Msg msg) -> failwith msg

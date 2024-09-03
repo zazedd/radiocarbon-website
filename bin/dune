@@ -1,6 +1,0 @@
-(executable
- (public_name radiocarbon_website)
- (name main)
- (libraries radiocarbon_lib pages dream lwt base64)
- (preprocess
-  (pps lwt_ppx ppx_yojson_conv tyxml-ppx)))
