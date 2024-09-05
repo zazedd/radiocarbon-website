@@ -8,7 +8,7 @@ let output_file (name, date, p) =
       a
         ~a:
           [
-            a_href ("/dashboard/get-output/" ^ Fpath.to_string p);
+            a_href ("/dashboard/outputs/" ^ Fpath.to_string p);
             a_class [ "w-layout-grid"; "output-file-grid" ];
           ]
         [
@@ -33,7 +33,7 @@ let output_pdf (typ, date, p) =
           a
             ~a:
               [
-                a_href ("/dashboard/get-output/" ^ Fpath.to_string p);
+                a_href ("/dashboard/outputs/" ^ Fpath.to_string p);
                 a_class [ "w-layout-grid"; "pdf-list-grid" ];
               ]
             [
@@ -53,7 +53,7 @@ let csv (data : string list list) =
   let row (row_data : string list) =
     tr (List.map (fun cell_data -> td [ txt cell_data ]) row_data)
   in
-  table ~a:[ a_class [ "testing" ] ] (List.map row data)
+  table ~a:[ a_class [ "csv-cells" ] ] (List.map row data)
 
 let file_details path (file : Files.File.t) request =
   [
@@ -84,6 +84,9 @@ let file_details path (file : Files.File.t) request =
                 div
                   ~a:[ a_class [ "card-main-info" ] ]
                   [
+                    h4
+                      ~a:[ a_class [ "csv-header" ] ]
+                      [ txt "Current file content:" ];
                     div
                       ~a:[ a_class [ "csv-table" ] ]
                       [ file.content |> Files.Csv.parse_csv |> csv ];

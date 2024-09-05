@@ -3,8 +3,10 @@ open Lwt.Syntax
 module Store = Files.Store
 module Tree = Store.Tree
 
-let branch = "main"
-let inputs = "inputs"
+let branch = Db_config.branch
+let inputs = Db_config.inputs
+let scripts_folder = Db_config.scripts
+let config = Db_config.config
 
 type config = {
   step : int;
@@ -89,13 +91,13 @@ let config_file folder_name (node, repo) : config Lwt.t =
   match node with
   | Ok _ ->
       Files.Store.of_branch repo branch >>= fun t ->
-      let* b = Files.Store.mem t ([ "inputs" ] @ folder_name @ [ "config" ]) in
+      let* b = Files.Store.mem t ([ inputs ] @ folder_name @ [ config ]) in
       if b then begin
-        Files.Store.get t ([ "inputs" ] @ folder_name @ [ "config" ])
+        Files.Store.get t ([ inputs ] @ folder_name @ [ config ])
         >|= fun content -> parse_config content `Custom
       end
       else begin
-        Files.Store.get t [ "config" ] >|= fun content ->
+        Files.Store.get t [ config ] >|= fun content ->
         parse_config content `Default
       end
   | Error (`Msg msg) -> failwith msg
@@ -329,3 +331,55 @@ let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
             end
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
+
+let find_earliest_commit_with_file ~path (node, repo) =
+  match node with
+  | Ok _ -> begin
+      Files.Store.of_branch repo branch >>= fun t ->
+      Store.last_modified t path >|= fun lst -> Ok (List.hd lst)
+    end
+  | Error (`Msg msg) -> Error msg |> Lwt.return
+
+let historic_input_config_and_script ~in_where ~out_where ~name np =
+  let input_file =
+    let name =
+      (* name.script.date.csv *)
+      name |> Fpath.v |> Fpath.rem_ext ~multi:true
+      (* name *) |> Fpath.add_ext ".csv" (* name.csv *)
+      |> Fpath.to_string
+    in
+    in_where @ [ name ]
+  in
+  let script_file =
+    (* n.script.date.csv or n.script.type.date.pdf *)
+    let name_fpath = name |> Fpath.v in
+    let tmp =
+      name_fpath |> Fpath.rem_ext
+      |> Fpath.rem_ext (* n.script or n.script.type *)
+    in
+    let name =
+      (if name_fpath |> Fpath.get_ext = ".csv" then tmp
+       else tmp |> Fpath.rem_ext)
+      (* n.script *) |> Fpath.get_ext (* .script *)
+      |> Files.remove_dot |> Fpath.v (* script *)
+      |> Fpath.add_ext ".r" (* script.r *)
+      |> Fpath.to_string
+    in
+    [ scripts_folder; name ]
+  in
+  let output_file = out_where @ [ name ] in
+  let config_file = in_where @ [ config ] in
+  find_earliest_commit_with_file ~path:output_file np >>= function
+  | Ok commit -> begin
+      Files.Store.of_commit commit >>= fun t ->
+      let+ config =
+        let* b = Files.Store.mem t config_file in
+        if b then
+          Files.Store.get t config_file >|= fun str -> parse_config str `Custom
+        else
+          Files.Store.get t [ config ] >|= fun str -> parse_config str `Default
+      and+ input_content = Files.Store.get t input_file
+      and+ script_content = Files.Store.get t script_file in
+      Ok (input_content, config, script_content)
+    end
+  | Error _ as err -> err |> Lwt.return

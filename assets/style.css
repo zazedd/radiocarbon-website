@@ -2788,6 +2788,7 @@ textarea.w-input, textarea.w-select {
 }
 
 ._100vh {
+  overflow: hidden;
   z-index: 80;
   height: 100vh;
   padding: 75px 15px 15px 75px;
@@ -3176,6 +3177,15 @@ textarea.w-input, textarea.w-select {
   outline: .05px dotted white;
   background-color: #313131;
   padding-top: 11px;
+}
+
+.download-button {
+  outline: .05px dotted white;
+  background-color: #313131;
+  padding-top: 11px;
+  text-align: center;
+  width: 100%;
+  border-radius: 5px;
 }
 
 .delete-button {
@@ -4030,15 +4040,109 @@ html.w-mod-js [data-ix="accordion-open-and-close-interaction"] {
 }
 
 .output-file-grid {
+  background-color: #000;
+  color: #fff; 
   text-decoration: none;
   cursor: pointer;
-  background-color: #000;
   border-radius: 5px;
   grid-template-rows: auto;
   margin-bottom: 15px;
   margin-left: 5px;
   margin-right: 5px;
   padding-right: 0;
+  transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+.output-file-grid:hover {
+  background-color: #bbb;
+}
+
+.output-file-grid:hover .card-info-text.bold.output-file-name {
+  color: #343434;
+}
+
+.output-file-grid:hover .card-lable {
+  color: #343434;
+}
+
+.output-file-desc {
+  margin-top: 10px;
+  margin-left: 20px;
+}
+
+.output-dropdowns {
+  aspect-ratio: auto;
+  overflow-wrap: normal;
+  height: 100%;
+  margin-left: 20px;
+  margin-right: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.output-file-dropdown {
+  -webkit-text-fill-color: inherit;
+  background-color: #e3e3e3;
+  background-clip: border-box;
+  border-radius: 5px;
+  width: 100%;
+  margin-top: 15px;
+  display: block;
+  overflow: visible;
+}
+
+.output-file-dropdownlist {
+  background-color: #fff;
+  border: 1px solid #e3e3e3;
+  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: 5px;
+  position: static;
+}
+
+.inner-dropdown-div {
+  border-radius: 0 0 5px 5px;
+  width: 100%;
+  height: 85%;
+  padding-bottom: 15px;
+  overflow: hidden;
+}
+
+.code-block {
+  height: 100%;
+  overflow: scroll;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f8f8;
+  padding: 10px;
+  font-family: monospace;
+  border: 1px solid #ddd;
+}
+
+.code-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.code-text {
+  margin-left: 5px;
+}
+
+.line-number {
+  color: #444;
+  width: 50px;
+  text-align: right;
+  padding-right: 5px;
+  padding-left: 5px;
+  box-sizing: border-box;
+  color: #333;
+  white-space: nowrap;
+}
+
+.code-line div {
+  flex-grow: 1;
+  white-space: pre;
 }
 
 .pdf-list-grid {
@@ -4052,10 +4156,24 @@ html.w-mod-js [data-ix="accordion-open-and-close-interaction"] {
 
 .pdf-list-div {
   background-color: #000;
+  color: #fff; 
   border-radius: 5px;
   margin-bottom: 15px;
   margin-left: 5px;
   margin-right: 5px;
+  transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+.pdf-list-div:hover {
+  background-color: #bbb;
+}
+
+.pdf-list-grid:hover .card-info-text.bold.output-file-name {
+  color: #343434;
+}
+
+.pdf-list-grid:hover .card-lable {
+  color: #343434;
 }
 
 .card-info-text {
@@ -4098,7 +4216,13 @@ html.w-mod-js [data-ix="accordion-open-and-close-interaction"] {
   margin: 15px 15px 0px 15px;
   height: 100%;
   margin-top: 15px;
+  padding-bottom: 15px;
   overflow: scroll;
+}
+
+.csv-header {
+  margin-top: 10px;
+  margin-left: 17px;
 }
 
 .csv-table td {
@@ -4119,11 +4243,11 @@ html.w-mod-js [data-ix="accordion-open-and-close-interaction"] {
   background-color: #ddd;
 }
 
-.testing tr:nth-child(even) {
+.csv-cells tr:nth-child(even) {
   background-color: #f2f2f2;
 }
 
-.testing tr:hover {
+.csv-cells tr:hover {
   background-color: #ddd;
 }
 

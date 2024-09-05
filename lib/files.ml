@@ -40,6 +40,8 @@ end = struct
     List.map (h ',') lines |> List.filter (( <> ) [])
 end
 
+let remove_dot f = String.sub f 1 (String.length f - 1)
+
 module File : sig
   type t = {
     name : Fpath.t;
@@ -64,7 +66,7 @@ end = struct
     pdfs : (string * string * Fpath.t) list;
   }
 
-  let compare_output (_, date1, _) (_, date2, _) = compare date1 date2
+  let compare_output (_, date1, _) (_, date2, _) = compare date2 date1
 
   let is_output f1 f2 =
     let input_ext = Fpath.get_ext f1 and output_ext = Fpath.get_ext f2 in
@@ -88,8 +90,7 @@ end = struct
     let script_dot =
       out_file |> Fpath.rem_ext |> Fpath.rem_ext |> Fpath.get_ext
     in
-    let date = String.sub date_dot 1 (String.length date_dot - 1) in
-    let script = String.sub script_dot 1 (String.length script_dot - 1) in
+    let date = remove_dot date_dot and script = remove_dot script_dot in
     (script, date, out_path)
 
   (* inputname.script.type.date.pdf *)
@@ -97,8 +98,7 @@ end = struct
     let out_path = Fpath.(fpath // out_file) in
     let date_dot = out_file |> Fpath.rem_ext |> Fpath.get_ext
     and typ_dot = out_file |> Fpath.rem_ext |> Fpath.rem_ext |> Fpath.get_ext in
-    let date = String.sub date_dot 1 (String.length date_dot - 1)
-    and typ = String.sub typ_dot 1 (String.length typ_dot - 1) in
+    let date = remove_dot date_dot and typ = remove_dot typ_dot in
     (typ, date, out_path)
 
   let collect_list p (acc : t) (path, t) =

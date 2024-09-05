@@ -1,3 +1,9 @@
+let branch = "main"
+let inputs = "inputs"
+let outputs = "outputs"
+let scripts = "scripts"
+let config = "config"
+
 (* Commit author *)
 let author = "RadioCarbon-Pipeline <leonardo+bot@tarides.com>"
 

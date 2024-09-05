@@ -18,5 +18,6 @@ let edit_config request = Config.edit request
 let add_folder path request = Folder.add path request
 let rename_folder old_name path request = Folder.rename old_name path request
 let file request = File.file request
+let output request = Output.output request
 let add_file path request = File.add path request
 let base ttl bdy extra_script = [ General.base ttl bdy extra_script ]

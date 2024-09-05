@@ -76,8 +76,15 @@ let handler =
              Dream.get "/get-file/:path" @@ Handlers.Promises.file_details;
              Dream.get "/get-file/:path/**" @@ Handlers.Promises.file_details;
              (* Outputs *)
+             Dream.get "/outputs/:path"
+             @@ Handlers.Get.Files.output "/dashboard/get-output";
+             Dream.get "/outputs/:path/**"
+             @@ Handlers.Get.Files.output "/dashboard/get-output";
              Dream.get "/get-output/:path" @@ Handlers.Promises.output;
              Dream.get "/get-output/:path/**" @@ Handlers.Promises.output;
+             Dream.get "/get-output-file/:path" @@ Handlers.Promises.output_file;
+             Dream.get "/get-output-file/:path/**"
+             @@ Handlers.Promises.output_file;
            ];
-         Dream.get "/assets/**" @@ Dream.static "./assets";
+         Dream.get "/assets/**" @@ Dream.static "./website/assets";
        ]
