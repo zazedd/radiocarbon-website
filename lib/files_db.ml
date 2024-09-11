@@ -114,10 +114,8 @@ let scripts script_folder (node, repo) : string list Lwt.t =
 let get_file ~in_where ~out_where ~name (node, repo) =
   match node with
   | Ok _ ->
-      let* tree =
-        Files.Store.of_branch repo branch >>= fun t -> Files.Store.get_tree t []
-      in
-      Files.File.get_file ~tree ~in_where ~out_where ~name
+      let* t = Files.Store.of_branch repo branch in
+      Files.File.get_file ~t ~in_where ~out_where ~name
   | Error (`Msg msg) -> failwith msg
 
 let get_output ~where ~name (node, repo) =
@@ -305,19 +303,30 @@ let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
       let* c = Files.Store.kind t in_where in
       let* root_tree = Files.Store.get_tree t [] in
       if c = Some `Node then
-        let* file =
-          Files.File.get_file ~tree:root_tree ~in_where ~out_where ~name
-        in
-        Files.Store.Tree.remove root_tree in_path >>= fun tree ->
-        Lwt_list.fold_left_s
-          (fun tree (_, _, output_path) ->
-            Format.printf "%s@." (output_path |> Fpath.to_string);
-            let output_path =
-              outputs
-              :: (output_path |> Fpath.to_string |> String.split_on_char '/')
+        let* file = Files.File.get_file ~t ~in_where ~out_where ~name in
+        Files.Store.Tree.remove root_tree in_path |> fun tree ->
+        (* iterate through all values of the output hashtbl
+           which can be a list of `Pdf (_, _, path) and `Csv (_, _, path)
+        *)
+        Hashtbl.fold
+          (fun _ v tree ->
+            let* tree = tree in
+            let tree =
+              Lwt_list.fold_left_s
+                (fun tree vin ->
+                  let _, _, output_path =
+                    match vin with `Csv x | `Pdf x -> x
+                  in
+                  let output_path =
+                    outputs
+                    :: (output_path |> Fpath.to_string
+                      |> String.split_on_char '/')
+                  in
+                  Files.Store.Tree.remove tree output_path)
+                tree v
             in
-            Files.Store.Tree.remove tree output_path)
-          tree file.outputs
+            tree)
+          file.outputs tree
         >>= Files.Store.set_tree_exn
               ~info:(Db_config.Pipeline.info "Removing file" user_email)
               t []
@@ -330,6 +339,26 @@ let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
               | Error `Detached_head -> Error "Detached head"
             end
       else Error "Parent directory does not exist" |> Lwt.return
+  | Error (`Msg msg) -> Error msg |> Lwt.return
+
+let historic_config_from_commit_hash ~hash ~in_where (node, repo) =
+  match node with
+  | Ok _ -> begin
+      let* copt = Files.Store.Commit.of_hash repo hash in
+      match copt with
+      | Some commit -> begin
+          Files.Store.of_commit commit >>= fun t ->
+          let config_file = in_where @ [ config ] in
+          let* b = Files.Store.mem t config_file in
+          if b then
+            Files.Store.get t config_file >|= fun str ->
+            Ok (parse_config str `Custom)
+          else
+            Files.Store.get t [ config ] >|= fun str ->
+            Ok (parse_config str `Default)
+        end
+      | None -> Error "No commit matches hash" |> Lwt.return
+    end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
 let find_earliest_commit_with_file ~path (node, repo) =

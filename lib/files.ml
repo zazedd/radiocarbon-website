@@ -2,9 +2,8 @@ open Lwt.Syntax
 open Lwt.Infix
 
 let addr =
-  Result.get_ok
-    (Smart_git.Endpoint.of_string
-       "git@github.com:zazedd/inputs-outputs-R14C.git")
+  let x = open_in "env/repo.txt" |> input_line |> String.trim in
+  Smart_git.Endpoint.of_string x |> Result.get_ok
 
 let key =
   let x = open_in "env/github_sk.pem" |> input_line |> String.trim in
@@ -42,31 +41,37 @@ end
 
 let remove_dot f = String.sub f 1 (String.length f - 1)
 
+type output =
+  [ `Pdf of string * string * Fpath.t | `Csv of string * string * Fpath.t ]
+(* csv -> (script name, date, file path) *)
+(* pdf -> (type of pdf, date, file path) *)
+
 module File : sig
   type t = {
     name : Fpath.t;
     content : string;
-    outputs : (string * string * Fpath.t) list;
-    pdfs : (string * string * Fpath.t) list;
+    outputs : (Digestif.SHA1.t, output list) Hashtbl.t;
   }
 
   val get_file :
-    tree:Store.tree ->
+    t:Store.t ->
     in_where:string list ->
     out_where:Store.path ->
     name:string ->
     t Lwt.t
 end = struct
-  (* outputs -> (script name, date, file path) list *)
-  (* pdfs -> (type of pdf, date, file path) list *)
   type t = {
     name : Fpath.t;
     content : string;
-    outputs : (string * string * Fpath.t) list;
-    pdfs : (string * string * Fpath.t) list;
+    (* git hash -> outputs *)
+    outputs : (Digestif.SHA1.t, output list) Hashtbl.t;
   }
 
-  let compare_output (_, date1, _) (_, date2, _) = compare date2 date1
+  let compare_output o1 o2 =
+    let date_of_output = function
+      | `Pdf (_, date, _) | `Csv (_, date, _) -> date
+    in
+    compare (date_of_output o2) (date_of_output o1)
 
   let is_output f1 f2 =
     let input_ext = Fpath.get_ext f1 and output_ext = Fpath.get_ext f2 in
@@ -101,47 +106,62 @@ end = struct
     let date = remove_dot date_dot and typ = remove_dot typ_dot in
     (typ, date, out_path)
 
-  let collect_list p (acc : t) (path, t) =
+  let collect_list ~head ~out_where p (acc : t) (path, t) =
+    let store_output output =
+      let+ commit =
+        Store.last_modified head (out_where @ [ path ]) >|= fun x -> List.hd x
+      in
+      let hash = Store.Commit.hash commit in
+      begin
+        match Hashtbl.find_opt acc.outputs hash with
+        | Some l ->
+            Hashtbl.replace acc.outputs hash (output :: l);
+            acc
+        | None ->
+            Hashtbl.add acc.outputs hash [ output ];
+            acc
+      end
+    in
     if path = "" then acc |> Lwt.return
     else
       let fpath = path |> Fpath.v in
       let name = fpath |> Fpath.base in
       let* k = Tree.kind t [] in
       match k with
-      | Some k' ->
-          (match k' with
-          | `Node -> acc
+      | Some k' -> (
+          match k' with
+          | `Node -> acc |> Lwt.return
           | `Contents -> begin
-              if is_output acc.name name then begin
-                { acc with outputs = (name |> script_name p) :: acc.outputs }
-              end
-              else if is_pdf_output acc.name name then begin
-                { acc with pdfs = (name |> pdf_name p) :: acc.pdfs }
-              end
-              else acc
+              if is_output acc.name name then
+                store_output (`Csv (name |> script_name p))
+              else if is_pdf_output acc.name name then
+                store_output (`Pdf (name |> pdf_name p))
+              else acc |> Lwt.return
             end)
-          |> Lwt.return
       | None -> failwith "no kind"
 
-  let get_file ~tree ~in_where ~out_where ~name =
+  let get_file ~t ~in_where ~out_where ~name =
+    let* tree = Store.tree t in
     let out_path =
       match List.tl out_where with
       | [] -> Fpath.v "."
       | lst -> lst |> String.concat "/" |> Fpath.v
     in
     let* content = Tree.get tree (in_where @ [ name ]) in
-    let name = Fpath.v name in
+    let fname = Fpath.v name in
     let* tree = Tree.get_tree tree out_where in
     Tree.list tree [] >>= fun l ->
-    Lwt_list.fold_left_s (collect_list out_path)
-      { name; content; outputs = []; pdfs = [] }
+    Lwt_list.fold_left_s
+      (collect_list ~head:t ~out_where out_path)
+      { name = fname; content; outputs = Hashtbl.create 0 }
       l
     >|= fun file ->
-    {
-      file with
-      outputs = List.sort compare_output file.outputs;
-      pdfs = List.sort compare_output file.pdfs;
-    }
+    Hashtbl.iter
+      (fun k v ->
+        let l = List.sort compare_output v in
+        Hashtbl.replace file.outputs k l)
+      file.outputs;
+    file
 end
 
 module Folder : sig

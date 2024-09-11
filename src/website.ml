@@ -85,6 +85,10 @@ let handler =
              Dream.get "/get-output-file/:path" @@ Handlers.Promises.output_file;
              Dream.get "/get-output-file/:path/**"
              @@ Handlers.Promises.output_file;
+             Dream.get "/get-pipeline-status/topbar"
+             @@ Handlers.Promises.pipeline_status_topbar;
+             Dream.get "/get-pipeline-status/popup"
+             @@ Handlers.Promises.pipeline_status_popup;
            ];
          Dream.get "/assets/**" @@ Dream.static "./website/assets";
        ]

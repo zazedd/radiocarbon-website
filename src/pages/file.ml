@@ -1,6 +1,100 @@
 open Website_lib
 open Tyxml.Html
 
+let output_config ?(single = false) (config : Files_db.config) =
+  div
+    ~a:[ a_class [ "w-layout-cell config-cell" ] ]
+    [
+      div
+        [
+          (if single then
+             txt "This output was generated with this configuration:"
+           else txt "These outputs were generated with this configuration:");
+        ];
+      h4 [ txt "Values" ];
+      div
+        ~a:[ a_class [ "config-div-in" ] ]
+        [
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-9" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-left" ] ]
+                    [ txt "Year Steps (for graphs)" ];
+                ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-3" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [ txt (config.step |> string_of_int) ];
+                ];
+            ];
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-9" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-left" ] ]
+                    [ txt "Confidence Interval" ];
+                ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-3" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [ txt (config.confidence |> string_of_float) ];
+                ];
+            ];
+        ];
+      h4 [ txt "Filtering" ];
+      div
+        ~a:[ a_class [ "config-div-in" ] ]
+        [
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-8" ] ]
+                [ div ~a:[ a_class [ "config-value-left" ] ] [ txt "Column" ] ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-4" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [
+                      (match config.column with
+                      | Some s -> txt s
+                      | None -> txt "(nothing)");
+                    ];
+                ];
+            ];
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-8" ] ]
+                [ div ~a:[ a_class [ "config-value-left" ] ] [ txt "Row" ] ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-4" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [
+                      (match config.value with
+                      | Some s -> txt s
+                      | None -> txt "(nothing)");
+                    ];
+                ];
+            ];
+        ];
+    ]
+
 let output_file (name, date, p) =
   li
     ~a:[ a_role [ "listitem" ] ]
@@ -49,13 +143,63 @@ let output_pdf (typ, date, p) =
         ];
     ]
 
+let html_outputs (file : Files.File.t)
+    (configs : (Digestif.SHA1.t, Files_db.config) Hashtbl.t) =
+  Hashtbl.fold
+    (fun k v acc ->
+      match Hashtbl.find_opt configs k with
+      | Some config ->
+          let csvs =
+            List.filter_map (function `Csv x -> Some x | _ -> None) v
+          in
+          let pdfs =
+            List.filter_map (function `Pdf x -> Some x | _ -> None) v
+          in
+          let _, date, _ =
+            if List.length csvs <> 0 then List.hd csvs else List.hd pdfs
+          in
+          let html =
+            [
+              output_config config;
+              div
+                ~a:[ a_class [ "card-lable-2"; "inline" ] ]
+                [ txt "CSV OUTPUTS" ];
+              ul
+                ~a:[ a_role [ "list" ]; a_class [ "output-file-list" ] ]
+                (List.map output_file csvs);
+              div
+                ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
+                [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
+              div
+                ~a:[ a_class [ "card-multi-images" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "card-lable-2"; "inline" ] ]
+                    [ txt "PLOT PDF OUTPUTS" ];
+                  ul
+                    ~a:
+                      [
+                        a_role [ "list" ];
+                        a_class [ "pdf-list w-list-unstyled" ];
+                      ]
+                    (List.map output_file pdfs);
+                ];
+            ]
+          in
+          (date, html) :: acc
+      | None -> acc)
+    file.outputs []
+  |> List.sort (fun (date1, _) (date2, _) -> compare date2 date1)
+  |> List.map snd |> List.flatten
+
 let csv (data : string list list) =
   let row (row_data : string list) =
     tr (List.map (fun cell_data -> td [ txt cell_data ]) row_data)
   in
   table ~a:[ a_class [ "csv-cells" ] ] (List.map row data)
 
-let file_details path (file : Files.File.t) request =
+let file_details path (file : Files.File.t)
+    (configs : (Digestif.SHA1.t, Files_db.config) Hashtbl.t) request =
   [
     div
       ~a:[ a_class [ "card-table" ] ]
@@ -96,76 +240,58 @@ let file_details path (file : Files.File.t) request =
               ~a:[ a_class [ "card-right-wrap" ] ]
               [
                 div
-                  ~a:[ a_class [ "card-multi-images" ] ]
+                  ~a:[ a_class [ "w-layout-layout"; "wf-layout-layout" ] ]
                   [
                     div
-                      ~a:[ a_class [ "card-lable"; "inline" ] ]
-                      [ txt "CSV OUTPUTS" ];
-                    ul
-                      ~a:[ a_role [ "list" ]; a_class [ "output-file-list" ] ]
-                      (List.map output_file file.outputs);
-                  ];
-                div
-                  ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
-                  [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
-                div
-                  ~a:[ a_class [ "card-multi-images" ] ]
-                  [
+                      ~a:[ a_class [ "card-multi-images" ] ]
+                      (html_outputs file configs);
                     div
-                      ~a:[ a_class [ "card-lable"; "inline" ] ]
-                      [ txt "PLOT PDF OUTPUTS" ];
-                    ul
-                      ~a:
-                        [
-                          a_role [ "list" ];
-                          a_class [ "pdf-list w-list-unstyled" ];
-                        ]
-                      (List.map output_pdf file.pdfs);
-                  ];
-                div
-                  ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
-                  [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
-                div
-                  ~a:[ a_class [ "card-multi-images" ] ]
-                  [
+                      ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
+                      [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
                     div
-                      ~a:[ a_class [ "card-lable"; "inline" ] ]
-                      [ txt "OTHER" ];
-                    div
-                      ~a:[ a_class [ "file-button-container" ] ]
+                      ~a:[ a_class [ "card-multi-images" ] ]
                       [
-                        a
-                          ~a:
-                            [
-                              a_href ("/dashboard/edit-file/" ^ path);
-                              a_class [ "edit-file-button"; "w-button" ];
-                            ]
-                          [ txt "EDIT" ];
-                        form
-                          ~a:
-                            [
-                              a_action ("/dashboard/remove-file/" ^ path);
-                              a_method `Post;
-                            ]
+                        div
+                          ~a:[ a_class [ "card-lable"; "inline" ] ]
+                          [ txt "OTHER" ];
+                        div
+                          ~a:[ a_class [ "file-button-container" ] ]
                           [
-                            Unsafe.data (Dream.csrf_tag request);
-                            input
+                            a
                               ~a:
                                 [
-                                  a_input_type `Hidden;
-                                  a_name "hidden";
-                                  a_value "hidden";
+                                  a_href ("/dashboard/edit-file/" ^ path);
+                                  a_class [ "edit-file-button"; "w-button" ];
                                 ]
-                              ();
-                            button
+                              [ txt "EDIT" ];
+                            form
                               ~a:
                                 [
-                                  a_id "delete-button";
-                                  a_class [ "delete-button-file"; "w-button" ];
-                                  a_style
-                                    "padding-bottom: 14px; border-radius: 5px";
+                                  a_action ("/dashboard/remove-file/" ^ path);
+                                  a_method `Post;
                                 ]
-                              [ txt "DELETE" ];
+                              [
+                                Unsafe.data (Dream.csrf_tag request);
+                                input
+                                  ~a:
+                                    [
+                                      a_input_type `Hidden;
+                                      a_name "hidden";
+                                      a_value "hidden";
+                                    ]
+                                  ();
+                                button
+                                  ~a:
+                                    [
+                                      a_id "delete-button";
+                                      a_class
+                                        [ "delete-button-file"; "w-button" ];
+                                      a_style
+                                        "padding-bottom: 14px; border-radius: \
+                                         5px";
+                                    ]
+                                  [ txt "DELETE" ];
+                              ];
                           ];
                       ];
                   ];

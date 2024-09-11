@@ -92,3 +92,64 @@ let confirm =
             });
           }
     |})
+
+let pipeline_popup =
+  let open Tyxml.Html in
+  script
+    (Unsafe.data
+       {|
+          function pipelinePopup() {
+            const popup = document.querySelector('.pipeline-status-popup');
+            if (popup.style.display === 'block') {
+              popup.style.opacity = 0;
+              setTimeout(() => {
+                popup.style.display = 'none';
+              }, 300);
+            } else {
+              popup.style.display = 'block';
+              setTimeout(() => {
+                popup.style.opacity = 1;
+              }, 10);
+            }
+          }
+
+          function closePipelinePopup() {
+            const popup = document.querySelector('.pipeline-status-popup');
+            popup.style.opacity = 0;
+            setTimeout(() => {
+              popup.style.display = 'none';
+            }, 300);
+          }
+
+          document.querySelector('.pipeline-status').addEventListener('click', pipelinePopup);
+          document.querySelector('.pipeline-status-tr img').addEventListener('click', closePipelinePopup);
+      |})
+
+let pipeline_topbar_popup_loader ~topbar_path ~popup_path =
+  let open Tyxml.Html in
+  script
+    (Unsafe.data
+       (Printf.sprintf
+          {|
+          function getPipelineStatusPromise(divname, path) {
+              const content = document.getElementById(divname);
+              fetch(path)
+                .then(response => response.text())
+                .then(data => content.innerHTML = data)
+                .catch(error => content.innerHTML = 'Failed to load.');
+          }
+
+          let p = '%s';
+          let t = '%s';
+
+          document.addEventListener('DOMContentLoaded', function () {
+            getPipelineStatusPromise('pipeline-topbar-content', p);
+            getPipelineStatusPromise('pipeline-popup-content', t);
+
+            setInterval(() => {
+              getPipelineStatusPromise('pipeline-topbar-content', p);
+              getPipelineStatusPromise('pipeline-popup-content', t);
+            }, 5000);
+          });
+        |}
+          topbar_path popup_path))

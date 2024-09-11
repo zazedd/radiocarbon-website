@@ -50,9 +50,130 @@ let base ttl bdy extra_scripts =
          bdy @ extra_scripts
        end)
 
+let format_desc desc =
+  let lines = String.split_on_char '\n' desc in
+  let paragraphs = List.map (fun line -> p [ txt line ]) lines in
+  div paragraphs
+
+let pipeline_popup_content (s : Status.s * string) =
+  let status_id, desc = s in
+  let status, _ = Status.to_strings s in
+  let color =
+    match status_id with
+    | `Success -> "green"
+    | `Running -> "orange"
+    | `Failed -> "red"
+    | `Waiting -> "white"
+  in
+  let open Tyxml.Html in
+  div
+    ~a:[ a_class [ "pipeline-popup-inner" ] ]
+    [
+      div
+        ~a:[ a_class [ "w-layout-grid"; "pipeline-status-grid" ] ]
+        [
+          (* Top-left section *)
+          div
+            ~a:[ a_class [ "pipeline-popup-tl" ] ]
+            [
+              div
+                ~a:[ a_class [ "pipeline-popup-status-text" ] ]
+                [ txt "Status" ];
+            ];
+          (* Top-right section *)
+          div
+            ~a:[ a_class [ "pipeline-status-tr" ] ]
+            [
+              div
+                ~a:
+                  [
+                    a_class [ "pipeline-status-status-text" ];
+                    a_style ("color: " ^ color);
+                  ]
+                [ txt status ];
+            ];
+        ];
+      (* Popup details section *)
+      div
+        ~a:[ a_class [ "pipeline-popup-details" ] ]
+        [
+          h5 ~a:[ a_class [ "heading-4" ] ] [ txt "Details" ];
+          div
+            ~a:[ a_class [ "pipeline-popup-text-div" ] ]
+            [ div ~a:[ a_class [ "text-block-6" ] ] [ format_desc desc ] ];
+        ];
+    ]
+
+let pipeline_topbar_content (s : Status.s * string) =
+  let status_id, _ = s in
+  let status, _ = Status.to_strings s in
+  let icon =
+    "/assets/icons/"
+    ^
+    match status_id with
+    | `Success -> "tick.png"
+    | `Running -> "pending.svg"
+    | `Failed -> "xmark.png"
+    | `Waiting -> "waiting.svg"
+  in
+  div
+    ~a:
+      [
+        a_class
+          [
+            "w-layout-layout";
+            "quick-stack-2";
+            "wf-layout-layout";
+            "pipeline-status-top-bar";
+          ];
+      ]
+    [
+      (* First cell *)
+      div
+        ~a:[ a_class [ "w-layout-cell"; "pipeline-status-grid-left" ] ]
+        [
+          div
+            ~a:[ a_class [ "pipeline-status-icon" ] ]
+            [
+              img ~src:icon ~alt:""
+                ~a:[ a_class [ "image-2" ]; a_width 15; a_height 15 ]
+                ();
+            ];
+        ];
+      (* Second cell *)
+      div
+        ~a:[ a_class [ "w-layout-cell" ] ]
+        [
+          div
+            ~a:[ a_class [ "pipeline-status-status" ] ]
+            [
+              div
+                ~a:[ a_class [ "pipeline-status-label" ] ]
+                [ txt "Pipeline Status" ];
+            ];
+        ];
+      (* Third cell *)
+      div
+        ~a:[ a_class [ "w-layout-cell"; "pipeline-status-grid-right" ] ]
+        [
+          div
+            ~a:[ a_class [ "pipeline-status-status" ] ]
+            [ div ~a:[ a_class [ "status-text" ] ] [ txt status ] ];
+        ];
+    ]
+
 let sidebar name text =
+  let default_status = (`Waiting, "Waiting for pipeline data") in
   let open Tyxml.Html in
   [
+    div
+      ~a:
+        [
+          a_class [ "pipeline-status-popup" ];
+          a_id "pipeline-popup-content";
+          a_style "display: none; opacity: 0; transition: opacity 0.3s ease;";
+        ]
+      [ pipeline_popup_content default_status ];
     div
       ~a:[ a_class [ "ui-top" ] ]
       [
@@ -62,6 +183,13 @@ let sidebar name text =
         div
           ~a:[ a_class [ "ui-top-wrap" ] ]
           [ h2 ~a:[ a_class [ "ui-title" ] ] [ txt name ] ];
+        div
+          ~a:[ a_class [ "pipeline-status" ] ]
+          [
+            div
+              ~a:[ a_id "pipeline-topbar-content" ]
+              [ pipeline_topbar_content default_status ];
+          ];
         div
           ~a:[ a_class [ "ui-top-wrap-2"; "right" ] ]
           [ p ~a:[ a_class [ "ui-text"; "user-text" ] ] [ txt text ] ];

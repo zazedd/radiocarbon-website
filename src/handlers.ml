@@ -6,8 +6,21 @@ let tyxml_list_to_string html =
   List.map (Format.asprintf "%a" (Tyxml.Html.pp_elt ())) html
   |> String.concat ""
 
+let pipeline_status_topbar_path = "/dashboard/get-pipeline-status/topbar"
+let pipeline_status_popup_path = "/dashboard/get-pipeline-status/popup"
+
 let serve ?(extra_scripts = [ Tyxml.Html.(script (txt "")) ]) title page =
-  Dream.html @@ (Pages.base title page extra_scripts |> tyxml_list_to_string)
+  let popup_scripts =
+    [
+      Pages.Scripts.pipeline_topbar_popup_loader
+        ~topbar_path:pipeline_status_topbar_path
+        ~popup_path:pipeline_status_popup_path;
+      Pages.Scripts.pipeline_popup;
+    ]
+  in
+  Dream.html
+  @@ (Pages.base title page (popup_scripts @ extra_scripts)
+     |> tyxml_list_to_string)
 
 let inputs = Db_config.inputs
 let outputs = Db_config.outputs
@@ -24,6 +37,13 @@ module Get = struct
     Pages.register request |> serve "Radiocarbon Calibration - Register"
 
   let dashboard resource_path request =
+    begin
+      match Status.get ~branch:Db_config.branch () with
+      | Some s ->
+          s |> Status.to_strings |> fun (a, b) ->
+          Format.printf "@.@.STATUS: %s, %s@.@." a b
+      | None -> Format.printf "NONE"
+    end;
     let extra_scripts =
       [
         Pages.Scripts.dropdown;
@@ -469,9 +489,19 @@ module Promises = struct
   let file_details request =
     let[@alert "-deprecated"] path = Dream.path request in
     let name, in_where, out_where, path = resolve_path_details path request in
-    Files_db.fetch Files_db.branch
-    >>= Files_db.get_file ~in_where ~out_where ~name
-    >>= fun f -> Pages.Promises.file_content path f request |> respond
+    Files_db.fetch Files_db.branch >>= fun np ->
+    Files_db.get_file ~in_where ~out_where ~name np >>= fun f ->
+    let configs = Hashtbl.create 0 in
+    Hashtbl.fold
+      (fun hash _ _ ->
+        let+ x = Files_db.historic_config_from_commit_hash ~hash ~in_where np in
+        match x with
+        | Ok c -> Hashtbl.add configs hash c
+        | Error s ->
+            Format.printf "ERROR %s@." s;
+            ())
+      f.outputs Lwt.return_unit
+    >>= fun () -> Pages.Promises.file_content path f configs request |> respond
 
   let output request =
     let[@alert "-deprecated"] path = Dream.path request in
@@ -501,4 +531,20 @@ module Promises = struct
     Files_db.fetch Files_db.branch
     >>= Files_db.get_output ~where:out_where ~name
     >>= static (Dream.mime_lookup name)
+
+  let pipeline_status_topbar _request =
+    (*in the future change branch to the branch of each contribution*)
+    [
+      Status.get ~branch:Db_config.branch ()
+      |> Option.get |> Pages.Promises.pipeline_topbar_content;
+    ]
+    |> respond
+
+  let pipeline_status_popup _request =
+    (*in the future change branch to the branch of each contribution*)
+    [
+      Status.get ~branch:Db_config.branch ()
+      |> Option.get |> Pages.Promises.pipeline_popup_content;
+    ]
+    |> respond
 end

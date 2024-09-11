@@ -1,6 +1,6 @@
 (library
  (name pages)
  (package website)
- (libraries dream tyxml website_lib)
+ (libraries dream pipeline_status tyxml website_lib)
  (preprocess
   (pps tyxml-ppx)))
