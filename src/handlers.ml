@@ -130,7 +130,9 @@ module Get = struct
       in
       let extra_scripts =
         [
-          Pages.Scripts.loader ~extra_action:"confirm ()" resource_path;
+          Pages.Scripts.loader ~extra_action:"dropdowns (); confirm ()"
+            resource_path;
+          Pages.Scripts.dropdown;
           Pages.Scripts.confirm;
         ]
       in
@@ -358,12 +360,76 @@ module Post = struct
       | `Ok [ ("file", [ (name, content) ]) ] -> (
           match name with
           | Some name -> begin
+              let fname = Fpath.v name in
               Session.grab_session request |> Result.get_ok |> fun user ->
-              Files_db.fetch Files_db.branch
-              >>= Files_db.add_file ~user_email:user.email ~path ~name ~content
-              >>= function
-              | Ok () -> Dream.redirect request "/dashboard"
-              | Error msg -> Pages.error ~msg request |> serve msg
+              Files_db.fetch Files_db.branch >>= fun np ->
+              if Fpath.has_ext ".csv" fname then
+                let content = Files.Csv.sanitize content in
+                Files_db.add_file ~user_email:user.email ~path ~name ~content np
+                >>= function
+                | Ok () -> Dream.redirect request "/dashboard"
+                | Error msg -> Pages.error ~msg request |> serve msg
+              else if Fpath.has_ext ".xlsx" fname then
+                (* lets convert the various sheets into csvs and store them all *)
+                let* csvs = Xlsx2csv.convert_content ~into:`Strings content in
+                match csvs with
+                | Ok (`Strings lst) -> begin
+                    (* lets first check if every sheet was converted correctly. if not we return early *)
+                    let l =
+                      List.filter_map
+                        (function Ok _ -> None | Error (`Msg msg) -> Some msg)
+                        lst
+                    in
+                    if List.length l <> 0 then
+                      let msg = List.hd l in
+                      Pages.error ~msg request |> serve msg
+                    else
+                      let* res =
+                        (* loop over every sheet and write them all as name_sheet_number.csv
+                           if something errors out we warn the user but the previously written csvs stay there...
+                           we might want to change that *)
+                        Lwt_list.fold_left_s
+                          (fun acc r ->
+                            match acc with
+                            | Ok counter -> begin
+                                match r with
+                                | Ok content ->
+                                    (* removing any extensions from this
+                                       file like .xlsx and others *)
+                                    (* TODO: fold over and push everything at once instead of pushing everything n times*)
+                                    let name_no_ext =
+                                      name |> Fpath.v
+                                      |> Fpath.rem_ext ~multi:true
+                                      |> Fpath.to_string
+                                    in
+                                    let name =
+                                      Format.sprintf "%s_sheet_%d.csv"
+                                        name_no_ext counter
+                                    in
+                                    let content = Files.Csv.sanitize content in
+                                    Format.printf "SHEET %d -> %s@." counter
+                                      content;
+                                    Files_db.add_file ~user_email:user.email
+                                      ~path ~name ~content np
+                                    >|= begin
+                                          function
+                                          | Ok () -> Ok (counter + 1)
+                                          | Error err -> Error err
+                                        end
+                                | Error _ -> assert false
+                              end
+                            | Error _ -> acc |> Lwt.return)
+                          (Ok 0) lst
+                      in
+                      match res with
+                      | Ok _ -> Dream.redirect request "/dashboard"
+                      | Error msg -> Pages.error ~msg request |> serve msg
+                  end
+                | Error (`Msg msg) -> Pages.error ~msg request |> serve msg
+                | _ -> assert false
+              else
+                let msg = "File should be a CSV or an Excel file!" in
+                Pages.error ~msg request |> serve msg
             end
           | None ->
               let msg = "File has no name" in
@@ -493,15 +559,23 @@ module Promises = struct
     Files_db.get_file ~in_where ~out_where ~name np >>= fun f ->
     let configs = Hashtbl.create 0 in
     Hashtbl.fold
-      (fun hash _ _ ->
-        let+ x = Files_db.historic_config_from_commit_hash ~hash ~in_where np in
-        match x with
-        | Ok c -> Hashtbl.add configs hash c
-        | Error s ->
-            Format.printf "ERROR %s@." s;
-            ())
-      f.outputs Lwt.return_unit
-    >>= fun () -> Pages.Promises.file_content path f configs request |> respond
+      (fun hash _ acc ->
+        let promise =
+          let+ x =
+            Files_db.historic_config_from_commit_hash ~hash ~in_where np
+          in
+          match x with
+          | Ok c -> Ok (Hashtbl.add configs hash c)
+          | Error _ as err -> err
+        in
+        promise :: acc)
+      f.outputs []
+    |> Lwt.all
+    >>= fun results ->
+    results |> List.filter (function Ok _ -> false | Error _ -> true)
+    |> function
+    | [] -> Pages.Promises.file_content path f configs request |> respond
+    | l -> List.hd l |> Pages.error |> respond
 
   let output request =
     let[@alert "-deprecated"] path = Dream.path request in

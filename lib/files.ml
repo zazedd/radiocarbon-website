@@ -22,9 +22,10 @@ module Store = Irmin_git_unix.FS.KV (Irmin.Contents.String)
 module Tree = Store.Tree
 
 module Csv : sig
-  val parse_csv : string -> string list list
+  val parse : string -> string list list
+  val sanitize : string -> string
 end = struct
-  let parse_csv str =
+  let parse str =
     let lines = String.split_on_char '\n' str in
     let rec h c line =
       let line = String.trim line in
@@ -32,11 +33,27 @@ end = struct
       else begin
         match String.split_on_char c line with
         | [ "" ] -> []
-        | [ _ ] | [] -> h ';' line
+        | [ _ ] | [] ->
+            h ';' line (* if the delimiter is not ',' we can try ';' *)
         | lst -> lst
       end
     in
     List.map (h ',') lines |> List.filter (( <> ) [])
+
+  let sanitize str =
+    let lines = parse str in
+    (List.filter
+       (fun (col_values : string list) ->
+         List.fold_left
+           (fun acc col_value -> acc || not (col_value = ""))
+           false col_values)
+       lines
+    |> List.map (String.concat ",")
+       (* add a last empty column such that R can properly read the header
+          (R is weird) *)
+    |> List.map (fun s -> s ^ ",")
+    |> String.concat "\n")
+    ^ "\n"
 end
 
 let remove_dot f = String.sub f 1 (String.length f - 1)

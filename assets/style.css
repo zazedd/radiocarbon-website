@@ -1967,6 +1967,12 @@ label {
   overflow: hidden;
 }
 
+.inner-dropdown-div-output {
+  border-radius: 0 0 5px 5px;
+  width: 100%;
+  overflow: hidden;
+}
+
 .code-block {
   height: 100%;
   overflow: scroll;
@@ -2060,6 +2066,15 @@ label {
 }
 
 .csv-table {
+  border-radius: 5px;
+  margin: 15px 15px 0px 15px;
+  height: 95%;
+  margin-top: 15px;
+  padding-bottom: 15px;
+  overflow: scroll;
+}
+
+.output-inner-dropdown {
   border-radius: 5px;
   margin: 15px 15px 0px 15px;
   height: 95%;

@@ -219,6 +219,7 @@ let add_folder ~user_email ~path ~name (node, repo) =
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
+(* TODO: Remove output folder*)
 let remove_folder ~user_email ~path (node, repo) =
   let path = List.filter (( <> ) "") path in
   match node with
@@ -241,6 +242,7 @@ let remove_folder ~user_email ~path (node, repo) =
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
+(* TODO: Rename output folder*)
 let rename_folder ~user_email ~path ~old_name ~new_name (node, repo) =
   let path = List.filter (( <> ) "") path in
   let old_folder_path = path @ [ old_name ] in
@@ -293,6 +295,8 @@ let add_file ~user_email ~path ~name ~content (node, repo) =
             end
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
+
+(* let add_file_tree ~user_email ~path ~name ~content (node, repo) = *)
 
 let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
   let outputs = List.hd out_where in

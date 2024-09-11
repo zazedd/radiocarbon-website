@@ -1,6 +1,6 @@
 (library
  (name website)
  (public_name website)
- (libraries website_lib pipeline_status pages dream lwt base64)
+ (libraries website_lib pipeline_status xlsx2csv pages dream lwt base64)
  (preprocess
   (pps lwt_ppx ppx_yojson_conv tyxml-ppx)))

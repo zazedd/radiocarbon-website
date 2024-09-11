@@ -9,7 +9,8 @@ let output_config ?(single = false) (config : Files_db.config) =
         [
           (if single then
              txt "This output was generated with this configuration:"
-           else txt "These outputs were generated with this configuration:");
+           else
+             txt "The following outputs were generated with this configuration:");
         ];
       h4 [ txt "Values" ];
       div
@@ -190,7 +191,7 @@ let html_outputs (file : Files.File.t)
       | None -> acc)
     file.outputs []
   |> List.sort (fun (date1, _) (date2, _) -> compare date2 date1)
-  |> List.map snd |> List.flatten
+  |> List.map snd
 
 let csv (data : string list list) =
   let row (row_data : string list) =
@@ -200,6 +201,25 @@ let csv (data : string list list) =
 
 let file_details path (file : Files.File.t)
     (configs : (Digestif.SHA1.t, Files_db.config) Hashtbl.t) request =
+  let first_outputs, other_outputs =
+    if Hashtbl.length file.outputs = 0 then
+      ( [
+          div
+            [
+              txt
+                "No outputs yet! Wait until the pipeline finishes and check \
+                 again.";
+            ];
+        ],
+        [] )
+    else
+      let outputs = html_outputs file configs in
+      ( List.hd outputs,
+        List.tl outputs
+        |> List.map (fun x -> x @ [ div ~a:[ a_class [ "separator" ] ] [] ])
+        |> List.flatten )
+  in
+
   [
     div
       ~a:[ a_class [ "card-table" ] ]
@@ -233,7 +253,7 @@ let file_details path (file : Files.File.t)
                       [ txt "Current file content:" ];
                     div
                       ~a:[ a_class [ "csv-table" ] ]
-                      [ file.content |> Files.Csv.parse_csv |> csv ];
+                      [ file.content |> Files.Csv.parse |> csv ];
                   ];
               ];
             div
@@ -242,12 +262,43 @@ let file_details path (file : Files.File.t)
                 div
                   ~a:[ a_class [ "w-layout-layout"; "wf-layout-layout" ] ]
                   [
-                    div
-                      ~a:[ a_class [ "card-multi-images" ] ]
-                      (html_outputs file configs);
-                    div
-                      ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
-                      [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
+                    div ~a:[ a_class [ "card-multi-images" ] ] first_outputs;
+                    (if List.length other_outputs <> 0 then
+                       div
+                         ~a:[ a_class [ "output-file-dropdown w-dropdown" ] ]
+                         [
+                           div
+                             ~a:
+                               [
+                                 a_class
+                                   [ "dropdown-toggle-3 w-dropdown-toggle" ];
+                               ]
+                             [
+                               div
+                                 ~a:[ a_class [ "w-icon-dropdown-toggle" ] ]
+                                 [];
+                               div [ txt "Older Outputs" ];
+                             ];
+                           nav
+                             ~a:
+                               [
+                                 a_class
+                                   [
+                                     "output-file-dropdownlist w-dropdown-list";
+                                   ];
+                               ]
+                             [
+                               div
+                                 ~a:[ a_class [ "inner-dropdown-div-output" ] ]
+                                 [
+                                   div
+                                     ~a:[ a_class [ "output-inner-dropdown" ] ]
+                                     other_outputs;
+                                 ];
+                             ];
+                         ]
+                     else div []);
+                    div ~a:[ a_class [ "separator" ] ] [];
                     div
                       ~a:[ a_class [ "card-multi-images" ] ]
                       [

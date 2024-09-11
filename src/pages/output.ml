@@ -99,9 +99,7 @@ let output_content name path input (config : Files_db.config) script _request =
                                   [
                                     div
                                       ~a:[ a_class [ "csv-table" ] ]
-                                      [
-                                        input |> Files.Csv.parse_csv |> File.csv;
-                                      ];
+                                      [ input |> Files.Csv.parse |> File.csv ];
                                   ];
                               ];
                           ];
