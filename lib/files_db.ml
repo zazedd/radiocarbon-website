@@ -214,12 +214,10 @@ let add_config ~user_email ~path ~step ~confidence ~column ~value ~script
       let config = create_config step confidence column value script in
       let* c = Files.Store.kind t path in
       if c = Some `Node then
-        let* res =
-          Files.Store.set t
-            ~info:(Db_config.Pipeline.info "Adding config" user_email)
-            config_path config
-        in
-        match res with
+        Files.Store.set t
+          ~info:(Db_config.Pipeline.info "Adding config" user_email)
+          config_path config
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -240,12 +238,10 @@ let update_config ~user_email ~path ~step ~confidence ~column ~value ~script
       let config = create_config step confidence column value script in
       let* c = Files.Store.mem t path in
       if c then
-        let* res =
-          Files.Store.set t
-            ~info:(Db_config.Pipeline.info "Updating config" user_email)
-            path config
-        in
-        match res with
+        Files.Store.set t
+          ~info:(Db_config.Pipeline.info "Updating config" user_email)
+          path config
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -264,12 +260,10 @@ let remove_config ~user_email ~path (node, repo) =
       let* t = Files.Store.of_branch repo branch in
       let* c = Files.Store.mem t path in
       if c then
-        let* res =
-          Files.Store.remove t
-            ~info:(Db_config.Pipeline.info "Removing config" user_email)
-            path
-        in
-        match res with
+        Files.Store.remove t
+          ~info:(Db_config.Pipeline.info "Removing config" user_email)
+          path
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -282,21 +276,26 @@ let remove_config ~user_email ~path (node, repo) =
       else Error "Config does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-(* TODO: Add output folder*)
-let add_folder ~user_email ~path ~name (node, repo) =
-  let path = List.filter (( <> ) "") path in
-  let new_file_path = path @ [ name; ".ign" ] in
+(* TODO: Add output folder *)
+let add_folder ~user_email ~in_where ~out_where ~name (node, repo) =
+  let in_where, out_where =
+    let f = List.filter (( <> ) "") in
+    (f in_where, f out_where)
+  in
+  let in_new_file_path = in_where @ [ name; ".ign" ] in
+  let out_new_file_path = out_where @ [ name; ".ign" ] in
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
-      let* c = Files.Store.kind t path in
+      let* c = Files.Store.kind t in_where in
+      let* root_tree = Files.Store.tree t in
       if c = Some `Node then
-        let* res =
-          Files.Store.set t
-            ~info:(Db_config.Pipeline.info "Adding folder" user_email)
-            new_file_path ""
-        in
-        match res with
+        Files.Store.Tree.add root_tree in_new_file_path "" >>= fun tree ->
+        Files.Store.Tree.add tree out_new_file_path "" >>= fun tree ->
+        Files.Store.set_tree
+          ~info:(Db_config.Pipeline.info "Adding folder" user_email)
+          t [] tree
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -309,7 +308,7 @@ let add_folder ~user_email ~path ~name (node, repo) =
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-(* TODO: Remove output folder*)
+(* TODO: Remove output folder (MAYBE?) *)
 let remove_folder ~user_email ~path (node, repo) =
   let path = List.filter (( <> ) "") path in
   match node with
@@ -317,12 +316,10 @@ let remove_folder ~user_email ~path (node, repo) =
       let* t = Files.Store.of_branch repo branch in
       let* c = Files.Store.kind t path in
       if c = Some `Node then
-        let* res =
-          Files.Store.remove t
-            ~info:(Db_config.Pipeline.info "Removing folder" user_email)
-            path
-        in
-        match res with
+        Files.Store.remove t
+          ~info:(Db_config.Pipeline.info "Removing folder" user_email)
+          path
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -336,27 +333,40 @@ let remove_folder ~user_email ~path (node, repo) =
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
 (* TODO: Rename output folder*)
-let rename_folder ~user_email ~path ~old_name ~new_name (node, repo) =
-  let path = List.filter (( <> ) "") path in
-  let old_folder_path = path @ [ old_name ] in
-  let new_folder_path = path @ [ new_name ] in
+let rename_folder ~user_email ~in_where ~out_where ~old_name ~new_name
+    (node, repo) =
+  let in_where, out_where =
+    let f = List.filter (( <> ) "") in
+    (f in_where, f out_where)
+  in
+  let in_old_folder_path = in_where @ [ old_name ] in
+  let in_new_folder_path = in_where @ [ new_name ] in
+  let out_old_folder_path = out_where @ [ old_name ] in
+  let out_new_folder_path = out_where @ [ new_name ] in
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
-      let* c = Files.Store.kind t old_folder_path in
+      let* c = Files.Store.kind t in_old_folder_path in
       let* root_tree = Files.Store.tree t in
       if c = Some `Node then
-        let* file_tree = Files.Store.Tree.get_tree root_tree old_folder_path in
-        Files.Store.Tree.update_tree root_tree new_folder_path (fun _ ->
-            Some file_tree)
-        >>= fun tree ->
-        Files.Store.Tree.remove tree old_folder_path >>= fun tree ->
-        let* res =
-          Files.Store.set_tree
-            ~info:(Db_config.Pipeline.info "Renaming folder" user_email)
-            t [] tree
+        let* in_file_tree =
+          Files.Store.Tree.get_tree root_tree in_old_folder_path
         in
-        match res with
+        let* out_file_tree =
+          Files.Store.Tree.get_tree root_tree out_old_folder_path
+        in
+        Files.Store.Tree.update_tree root_tree in_new_folder_path (fun _ ->
+            Some in_file_tree)
+        >>= fun tree ->
+        Files.Store.Tree.update_tree tree out_new_folder_path (fun _ ->
+            Some out_file_tree)
+        >>= fun tree ->
+        Files.Store.Tree.remove tree in_old_folder_path >>= fun tree ->
+        Files.Store.Tree.remove tree out_old_folder_path >>= fun tree ->
+        Files.Store.set_tree
+          ~info:(Db_config.Pipeline.info "Renaming folder" user_email)
+          t [] tree
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -377,12 +387,10 @@ let add_file ~user_email ~path ~name ~content (node, repo) =
       let* t = Files.Store.of_branch repo branch in
       let* c = Files.Store.kind t path in
       if c = Some `Node then
-        let* res =
-          Files.Store.set t
-            ~info:(Db_config.Pipeline.info "Adding file" user_email)
-            new_file_path content
-        in
-        match res with
+        Files.Store.set t
+          ~info:(Db_config.Pipeline.info "Adding file" user_email)
+          new_file_path content
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -427,12 +435,10 @@ let add_files ~user_email ~path ~name ~contents (node, repo) =
               | Error _ -> assert false)
             (tree, 0) contents
         in
-        let* res =
-          Files.Store.set_tree
-            ~info:(Db_config.Pipeline.info "Adding files" user_email)
-            t path tree
-        in
-        match res with
+        Files.Store.set_tree
+          ~info:(Db_config.Pipeline.info "Adding files" user_email)
+          t path tree
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch
@@ -446,7 +452,27 @@ let add_files ~user_email ~path ~name ~contents (node, repo) =
     end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-(* let add_file_tree ~user_email ~path ~name ~content (node, repo) = *)
+let edit_file ~user_email ~path content (node, repo) =
+  match node with
+  | Ok _ ->
+      let* t = Files.Store.of_branch repo branch in
+      let* c = Files.Store.mem t path in
+      if c then
+        Files.Store.set t
+          ~info:(Db_config.Pipeline.info "Editing file" user_email)
+          path content
+        >>= function
+        | Error _ as err -> handle_write_error err |> Lwt.return
+        | Ok () ->
+            push branch
+            >|= begin
+                  function
+                  | Ok () -> Ok ()
+                  | Error (`Msg msg) -> Error msg
+                  | Error `Detached_head -> Error "Detached head"
+                end
+      else Error "File does not exist" |> Lwt.return
+  | Error (`Msg msg) -> Error msg |> Lwt.return
 
 let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
   let outputs = List.hd out_where in
@@ -483,12 +509,10 @@ let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
               tree)
             file.outputs tree
         in
-        let* res =
-          Files.Store.set_tree
-            ~info:(Db_config.Pipeline.info "Removing file" user_email)
-            t [] tree
-        in
-        match res with
+        Files.Store.set_tree
+          ~info:(Db_config.Pipeline.info "Removing file" user_email)
+          t [] tree
+        >>= function
         | Error _ as err -> handle_write_error err |> Lwt.return
         | Ok () ->
             push branch

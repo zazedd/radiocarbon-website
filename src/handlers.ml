@@ -154,13 +154,16 @@ module Get = struct
 
     let add request =
       let[@alert "-deprecated"] folder_path =
-        Dream.path request |> String.concat "/"
+        let path = Dream.path request in
+        if List.hd path = "dashboard" then "" else path |> String.concat "/"
       in
       Pages.add_file folder_path request |> serve "Radiocarbon Calibration"
 
     let add_folder request =
       let[@alert "-deprecated"] folder_path =
-        Dream.path request |> String.concat "/"
+        let path = Dream.path request in
+        Format.printf "GET %s@." (String.concat "/" path);
+        if List.hd path = "dashboard" then "" else path |> String.concat "/"
       in
       Pages.add_folder folder_path request |> serve "Radiocarbon Calibration"
 
@@ -402,12 +405,28 @@ module Post = struct
               Pages.error ~msg request |> serve msg)
       | _ -> Dream.empty `Bad_Request
 
+    let edit request =
+      let[@alert "-deprecated"] path = Dream.path request in
+      let path =
+        let name = Files.last_element path |> Option.value ~default:"" in
+        if List.hd path = "dashboard" then [ inputs; name ] else inputs :: path
+      in
+      match%lwt Dream.form request with
+      | `Ok [ ("content", content) ] -> (
+          Session.grab_session request |> Result.get_ok |> fun user ->
+          Files_db.fetch Files_db.branch
+          >>= Files_db.edit_file ~user_email:user.email ~path content
+          >>= function
+          | Ok () -> Dream.redirect request "/dashboard"
+          | Error msg -> Pages.error ~msg request |> serve msg)
+      | _ -> Dream.empty `Bad_Request
+
     let remove request =
       let[@alert "-deprecated"] path = Dream.path request in
       let name, in_where, out_where =
         let name = Files.last_element path |> Option.value ~default:"" in
         let path = path |> List.rev |> List.tl |> List.rev in
-        (name, [ inputs ] @ path, [ outputs ] @ path)
+        (name, inputs :: path, outputs :: path)
       in
       match%lwt Dream.form request with
       | `Ok [ ("hidden", "hidden") ] -> (
@@ -421,12 +440,17 @@ module Post = struct
       | _ -> Dream.empty `Bad_Request
 
     let add_folder request =
-      let[@alert "-deprecated"] path = inputs :: Dream.path request in
+      let[@alert "-deprecated"] path = Dream.path request in
+      let in_where, out_where =
+        if List.hd path = "dashboard" then ([ inputs ], [ outputs ])
+        else (inputs :: path, outputs :: path)
+      in
       match%lwt Dream.form request with
       | `Ok [ ("name", name) ] -> (
           Session.grab_session request |> Result.get_ok |> fun user ->
           Files_db.fetch Files_db.branch
-          >>= Files_db.add_folder ~user_email:user.email ~path ~name
+          >>= Files_db.add_folder ~user_email:user.email ~in_where ~out_where
+                ~name
           >>= function
           | Ok () -> Dream.redirect request "/dashboard"
           | Error msg -> Pages.error ~msg request |> serve msg)
@@ -434,19 +458,25 @@ module Post = struct
 
     let rename_folder request =
       let[@alert "-deprecated"] path = Dream.path request in
-      let rev_path = path |> List.rev in
-      let old_name = rev_path |> List.hd in
-      let path = inputs :: (rev_path |> List.tl |> List.rev) in
-      match%lwt Dream.form request with
-      | `Ok [ ("name", new_name) ] -> (
-          Session.grab_session request |> Result.get_ok |> fun user ->
-          Files_db.fetch Files_db.branch
-          >>= Files_db.rename_folder ~old_name ~new_name ~user_email:user.email
-                ~path
-          >>= function
-          | Ok () -> Dream.redirect request "/dashboard"
-          | Error msg -> Pages.error ~msg request |> serve msg)
-      | _ -> Dream.empty `Bad_Request
+      if List.hd path = "dashboard" then
+        let msg = "Do not rename the inputs folder" in
+        Pages.error ~msg request |> serve msg
+      else
+        let old_name, in_where, out_where =
+          let name = Files.last_element path |> Option.value ~default:"" in
+          let path = path |> List.rev |> List.tl |> List.rev in
+          (name, inputs :: path, outputs :: path)
+        in
+        match%lwt Dream.form request with
+        | `Ok [ ("name", new_name) ] -> (
+            Session.grab_session request |> Result.get_ok |> fun user ->
+            Files_db.fetch Files_db.branch
+            >>= Files_db.rename_folder ~user_email:user.email ~in_where
+                  ~out_where ~old_name ~new_name
+            >>= function
+            | Ok () -> Dream.redirect request "/dashboard"
+            | Error msg -> Pages.error ~msg request |> serve msg)
+        | _ -> Dream.empty `Bad_Request
 
     let remove_folder request =
       let[@alert "-deprecated"] path = inputs :: Dream.path request in
@@ -461,6 +491,8 @@ module Post = struct
       | _ -> Dream.empty `Bad_Request
   end
 end
+
+(* ---------------------------------------------------------------------------- *)
 
 module Promises = struct
   let respond x : Dream.response Lwt.t =
@@ -509,8 +541,8 @@ module Promises = struct
       let name = Files.last_element path |> Option.value ~default:"" in
       let path = path |> List.rev |> List.tl |> List.rev in
       ( name,
-        [ inputs ] @ path,
-        [ outputs ] @ path,
+        inputs :: path,
+        outputs :: path,
         path @ [ name ] |> String.concat "/" )
 
   let file_details request =

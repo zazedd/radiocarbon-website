@@ -50,7 +50,7 @@ let handler =
              Dream.post "/add-file/" @@ Handlers.Post.Files.add;
              Dream.get "/edit-file/**"
              @@ Handlers.Get.Files.edit "/dashboard/get-edit-file";
-             Dream.post "/edit-file/**" @@ Handlers.Post.Files.remove;
+             Dream.post "/edit-file/**" @@ Handlers.Post.Files.edit;
              Dream.post "/remove-file/**" @@ Handlers.Post.Files.remove;
              Dream.get "/add-folder/**" @@ Handlers.Get.Files.add_folder;
              Dream.post "/add-folder/**" @@ Handlers.Post.Files.add_folder;

@@ -572,9 +572,9 @@ let edit_content path (file : Files.File.t) request =
                                     [
                                       a_required ();
                                       a_placeholder "Example Text";
-                                      a_maxlength 5000;
-                                      a_id "config-edit-field";
-                                      a_name "config-edit-field";
+                                      a_maxlength 10000;
+                                      a_id "content";
+                                      a_name "content";
                                       a_class [ "csv-edit-textarea"; "w-input" ];
                                     ]
                                   (txt file.content);
