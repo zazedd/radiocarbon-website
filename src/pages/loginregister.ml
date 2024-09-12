@@ -27,7 +27,7 @@ let login request =
                             a_name "email-form";
                             a_user_data "name" "Email Form";
                             a_method `Post;
-                            a_class [ "form" ];
+                            a_class [ "login-form" ];
                             a_action "/login";
                           ]
                         [
@@ -148,7 +148,7 @@ let register request =
                             a_name "email-form";
                             a_user_data "name" "Email Form";
                             a_method `Post;
-                            a_class [ "form" ];
+                            a_class [ "login-form" ];
                             a_action "/register";
                           ]
                         [

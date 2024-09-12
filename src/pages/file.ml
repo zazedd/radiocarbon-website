@@ -460,7 +460,8 @@ let add folder_path request =
                                                 a_input_type `Submit;
                                                 a_class
                                                   [
-                                                    "submit-button"; "w-button";
+                                                    "submit-button-file-edit";
+                                                    "w-button";
                                                   ];
                                                 a_value "Submit";
                                               ]
@@ -475,3 +476,113 @@ let add folder_path request =
             ];
         ];
     ]
+
+let edit_content path (file : Files.File.t) request =
+  [
+    div
+      ~a:[ a_class [ "card-table" ] ]
+      [
+        div
+          ~a:[ a_class [ "file-header" ] ]
+          [
+            div
+              ~a:[ a_class [ "card-header-wrap" ] ]
+              [
+                div
+                  ~a:[ a_class [ "header-desc" ] ]
+                  [
+                    div
+                      ~a:[ a_class [ "header-title" ] ]
+                      [ txt (file.name |> Fpath.to_string) ];
+                  ];
+              ];
+          ];
+        div
+          ~a:[ a_class [ "card-wrapper" ] ]
+          [
+            div
+              ~a:[ a_class [ "config-edit-div" ] ]
+              [
+                div
+                  ~a:[ a_class [ "form-block"; "w-form" ] ]
+                  [
+                    form
+                      ~a:
+                        [
+                          a_id "email-form";
+                          a_name "config-form";
+                          a_method `Post;
+                          a_action ("/dashboard/edit-file/" ^ path);
+                          a_class [ "form" ];
+                        ]
+                      [
+                        Unsafe.data (Dream.csrf_tag request);
+                        div
+                          ~a:[ a_class [ "card-main-info" ] ]
+                          [
+                            div
+                              ~a:[ a_class [ "w-row" ] ]
+                              [
+                                div
+                                  ~a:
+                                    [
+                                      a_class
+                                        [
+                                          "csv-edit-column"; "w-col"; "w-col-6";
+                                        ];
+                                    ]
+                                  [
+                                    div
+                                      ~a:[ a_class [ "file-edit-text" ] ]
+                                      [
+                                        txt
+                                          "Edit the content of the file in the \
+                                           block below:";
+                                      ];
+                                  ];
+                                div
+                                  ~a:
+                                    [
+                                      a_class
+                                        [
+                                          "submit-button-file-edit-div";
+                                          "w-col";
+                                          "w-col-6";
+                                        ];
+                                    ]
+                                  [
+                                    button
+                                      ~a:
+                                        [
+                                          a_class
+                                            [
+                                              "submit-button-file-edit";
+                                              "w-button";
+                                            ];
+                                          a_button_type `Submit;
+                                        ]
+                                      [ txt "Submit" ];
+                                  ];
+                              ];
+                            div
+                              ~a:[ a_class [ "csv-edit-content" ] ]
+                              [
+                                textarea
+                                  ~a:
+                                    [
+                                      a_required ();
+                                      a_placeholder "Example Text";
+                                      a_maxlength 5000;
+                                      a_id "config-edit-field";
+                                      a_name "config-edit-field";
+                                      a_class [ "csv-edit-textarea"; "w-input" ];
+                                    ]
+                                  (txt file.content);
+                              ];
+                          ];
+                      ];
+                  ];
+              ];
+          ];
+      ];
+  ]

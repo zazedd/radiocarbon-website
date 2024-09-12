@@ -276,9 +276,14 @@ label {
 
 .w-col {
   float: left;
-  width: 100%;
+  width: 20%;
   min-height: 1px;
   position: relative;
+}
+
+.w-col .w-col {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .w-col-3 {
@@ -299,6 +304,10 @@ label {
 
 .w-col-9 {
   width: 75%;
+}
+
+.w-col-10 {
+  width: 83.3333%;
 }
 
 @media screen and (max-width: 991px) {
@@ -703,7 +712,7 @@ label {
   margin-bottom: 30px;
 }
 
-.form {
+.login-form {
   background-color: #0009;
   border-radius: 10px;
   padding: 10px 15px;
@@ -1280,6 +1289,12 @@ label {
   border-radius: 5px;
 }
 
+.delete-button {
+  outline: .05px dotted white;
+  background-color: red;
+  padding-top: 11px;
+}
+
 .delete-button-file {
   border-radius: 5px;
   outline: .05px dotted white;
@@ -1345,6 +1360,20 @@ label {
 .submit-button {
   background-color: #000;
   border-radius: 5px;
+}
+
+.submit-button-file-edit {
+  background-color: #000;
+  align-self: right;
+  border-radius: 5px;
+  margin-top: 15px;
+  margin-right: 15px;
+  display: block;
+}
+
+.submit-button-file-edit-div {
+  display: flex;
+  flex-direction: row-reverse;
 }
 
 .select-field {
@@ -1534,6 +1563,21 @@ label {
   padding-right: 5px;
 }
 
+.new-config-button {
+  text-align: right;
+  background-color: black;
+  color: white;
+  font-size: 11px;
+  padding: 0 10px;
+  border-radius: 5px;
+  inset: 0% 0% 0% auto;
+}
+
+.new-config-button:hover {
+  background-color: #ccc;
+  color: black;
+}
+
 .error-div {
   width: 100%; 
   margin-bottom: 10px;
@@ -1670,6 +1714,8 @@ label {
 
 .config-col {
   width: 100%;
+  display: flex; 
+  align-items: center;
   margin-bottom: 5px;
 }
 
@@ -2314,4 +2360,44 @@ label {
 .text-block-6 {
   height: 100%;
   margin: 5px;
+}
+
+.csv-edit-content {
+  aspect-ratio: auto;
+  overflow-wrap: normal;
+  height: 100%;
+  margin-top: 15px;
+  margin-left: 15px;
+  margin-right: 15px;
+  position: relative;
+  overflow: auto;
+}
+
+.csv-edit-textarea {
+  background-color: #e3e3e3;
+  border-radius: 5px;
+  width: 100%;
+  min-width: 100%;
+  height: 90%;
+  min-height: 90%;
+  position: relative;
+  overflow: scroll;
+}
+
+.csv-edit-column {
+  flex-flow: column;
+  justify-content: center;
+  align-items: flex-start;
+  margin-top: 20px;
+  display: flex;
+}
+
+.config-edit-div {
+  border-right: 1px solid var(--cat-line);
+  width: 100%;
+}
+
+.file-edit-text {
+  margin-top: 3px;
+  margin-left: 15px;
 }

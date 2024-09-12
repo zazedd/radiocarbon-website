@@ -48,12 +48,20 @@ let handler =
              Dream.get "/add-file/**" @@ Handlers.Get.Files.add;
              Dream.post "/add-file/**" @@ Handlers.Post.Files.add;
              Dream.post "/add-file/" @@ Handlers.Post.Files.add;
+             Dream.get "/edit-file/**"
+             @@ Handlers.Get.Files.edit "/dashboard/get-edit-file";
+             Dream.post "/edit-file/:path" @@ Handlers.Post.Files.remove;
+             Dream.post "/edit-file/**" @@ Handlers.Post.Files.remove;
              Dream.post "/remove-file/**" @@ Handlers.Post.Files.remove;
              Dream.get "/add-folder/**" @@ Handlers.Get.Files.add_folder;
              Dream.post "/add-folder/**" @@ Handlers.Post.Files.add_folder;
              Dream.get "/rename-folder/**" @@ Handlers.Get.Files.rename_folder;
              Dream.post "/rename-folder/**" @@ Handlers.Post.Files.rename_folder;
              Dream.post "/remove-folder/**" @@ Handlers.Post.Files.remove_folder;
+             Dream.get "/get-edit-file/:path"
+             @@ Handlers.Promises.edit_file_content;
+             Dream.get "/get-edit-file/:path/**"
+             @@ Handlers.Promises.edit_file_content;
            ];
          Dream.scope "/dashboard" [ Session.all_middleware ]
            [
