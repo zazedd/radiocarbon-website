@@ -50,7 +50,6 @@ let handler =
              Dream.post "/add-file/" @@ Handlers.Post.Files.add;
              Dream.get "/edit-file/**"
              @@ Handlers.Get.Files.edit "/dashboard/get-edit-file";
-             Dream.post "/edit-file/:path" @@ Handlers.Post.Files.remove;
              Dream.post "/edit-file/**" @@ Handlers.Post.Files.remove;
              Dream.post "/remove-file/**" @@ Handlers.Post.Files.remove;
              Dream.get "/add-folder/**" @@ Handlers.Get.Files.add_folder;
@@ -58,41 +57,27 @@ let handler =
              Dream.get "/rename-folder/**" @@ Handlers.Get.Files.rename_folder;
              Dream.post "/rename-folder/**" @@ Handlers.Post.Files.rename_folder;
              Dream.post "/remove-folder/**" @@ Handlers.Post.Files.remove_folder;
-             Dream.get "/get-edit-file/:path"
-             @@ Handlers.Promises.edit_file_content;
-             Dream.get "/get-edit-file/:path/**"
+             Dream.get "/get-edit-file/**"
              @@ Handlers.Promises.edit_file_content;
            ];
          Dream.scope "/dashboard" [ Session.all_middleware ]
            [
              Dream.get "" @@ Handlers.Get.dashboard "/dashboard/get-files";
              (* Configs *)
-             Dream.get "/configs/:path"
-             @@ Handlers.Get.Configs.config "/dashboard/get-config";
-             Dream.get "/configs/:path/**"
+             Dream.get "/configs/**"
              @@ Handlers.Get.Configs.config "/dashboard/get-config";
              (* PROMISES *)
-             Dream.get "/get-config/:path" @@ Handlers.Promises.config_details;
-             Dream.get "/get-config/:path/**"
-             @@ Handlers.Promises.config_details;
+             Dream.get "/get-config/**" @@ Handlers.Promises.config_details;
              (* Files *)
-             Dream.get "/inputs/:path"
-             @@ Handlers.Get.Files.file "/dashboard/get-file";
-             Dream.get "/inputs/:path/**"
+             Dream.get "/inputs/**"
              @@ Handlers.Get.Files.file "/dashboard/get-file";
              Dream.get "/get-files" @@ Handlers.Promises.dashboard_files;
-             Dream.get "/get-file/:path" @@ Handlers.Promises.file_details;
-             Dream.get "/get-file/:path/**" @@ Handlers.Promises.file_details;
+             Dream.get "/get-file/**" @@ Handlers.Promises.file_details;
              (* Outputs *)
-             Dream.get "/outputs/:path"
+             Dream.get "/outputs/**"
              @@ Handlers.Get.Files.output "/dashboard/get-output";
-             Dream.get "/outputs/:path/**"
-             @@ Handlers.Get.Files.output "/dashboard/get-output";
-             Dream.get "/get-output/:path" @@ Handlers.Promises.output;
-             Dream.get "/get-output/:path/**" @@ Handlers.Promises.output;
-             Dream.get "/get-output-file/:path" @@ Handlers.Promises.output_file;
-             Dream.get "/get-output-file/:path/**"
-             @@ Handlers.Promises.output_file;
+             Dream.get "/get-output/**" @@ Handlers.Promises.output;
+             Dream.get "/get-output-file/**" @@ Handlers.Promises.output_file;
              Dream.get "/get-pipeline-status/topbar"
              @@ Handlers.Promises.pipeline_status_topbar;
              Dream.get "/get-pipeline-status/popup"

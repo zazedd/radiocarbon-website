@@ -90,12 +90,8 @@ module Get = struct
 
   module Configs = struct
     let config resource_path request =
-      let before = Dream.param request "path" in
       let[@alert "-deprecated"] path_request = Dream.path request in
-      let resource_path =
-        if List.hd path_request = "dashboard" then resource_path ^ "/" ^ before
-        else resource_path ^ "/" ^ (before :: path_request |> String.concat "/")
-      in
+      let resource_path = get_resource_path resource_path path_request in
       let extra_scripts =
         [
           Pages.Scripts.loader ~extra_action:"confirm ()" resource_path;
@@ -112,10 +108,10 @@ module Get = struct
       Pages.add_config folder scripts request |> serve "Radiocarbon Calibration"
 
     let edit resource_path request =
-      let[@alert "-deprecated"] path =
+      let[@alert "-deprecated"] resource_path =
         resource_path ^ "/" ^ (Dream.path request |> String.concat "/")
       in
-      let extra_scripts = [ Pages.Scripts.loader path ] in
+      let extra_scripts = [ Pages.Scripts.loader resource_path ] in
       Pages.edit_config request
       |> serve ~extra_scripts "Radiocarbon Calibration"
 
@@ -127,12 +123,8 @@ module Get = struct
 
   module Files = struct
     let file resource_path request =
-      let before = Dream.param request "path" in
       let[@alert "-deprecated"] path_request = Dream.path request in
-      let resource_path =
-        if List.hd path_request = "dashboard" then resource_path ^ "/" ^ before
-        else resource_path ^ "/" ^ (before :: path_request |> String.concat "/")
-      in
+      let resource_path = get_resource_path resource_path path_request in
       let extra_scripts =
         [
           Pages.Scripts.loader ~extra_action:"dropdowns (); confirm ()"
@@ -145,21 +137,13 @@ module Get = struct
 
     let edit resource_path request =
       let[@alert "-deprecated"] path_request = Dream.path request in
-      let resource_path =
-        if List.hd path_request = "dashboard" then
-          resource_path ^ (List.tl path_request |> String.concat "/")
-        else resource_path ^ "/" ^ (path_request |> String.concat "/")
-      in
+      let resource_path = get_resource_path resource_path path_request in
       let extra_scripts = [ Pages.Scripts.loader resource_path ] in
       Pages.file request |> serve ~extra_scripts "Radiocarbon Calibration"
 
     let output resource_path request =
-      let before = Dream.param request "path" in
       let[@alert "-deprecated"] path_request = Dream.path request in
-      let resource_path =
-        if List.hd path_request = "dashboard" then resource_path ^ "/" ^ before
-        else resource_path ^ "/" ^ (before :: path_request |> String.concat "/")
-      in
+      let resource_path = get_resource_path resource_path path_request in
       let extra_scripts =
         [
           Pages.Scripts.loader ~extra_action:"dropdowns ()" resource_path;
@@ -175,19 +159,21 @@ module Get = struct
       Pages.add_file folder_path request |> serve "Radiocarbon Calibration"
 
     let add_folder request =
-      let[@alert "-deprecated"] path =
+      let[@alert "-deprecated"] folder_path =
         Dream.path request |> String.concat "/"
       in
-      Pages.add_folder path request |> serve "Radiocarbon Calibration"
+      Pages.add_folder folder_path request |> serve "Radiocarbon Calibration"
 
     let rename_folder request =
-      let[@alert "-deprecated"] path = Dream.path request in
-      let old_name = path |> List.rev |> List.hd in
-      let path = path |> String.concat "/" in
+      let[@alert "-deprecated"] folder_path = Dream.path request in
+      let old_name = folder_path |> List.rev |> List.hd in
+      let path = folder_path |> String.concat "/" in
       Pages.rename_folder old_name path request
       |> serve "Radiocarbon Calibration"
   end
 end
+
+(* ---------------------------------------------------------------------------- *)
 
 module Post = struct
   let register request : Dream.response Lwt.t =
@@ -490,11 +476,8 @@ module Promises = struct
     Pages.Promises.dashboard_files files request |> respond
 
   let config_details request =
-    let before = Dream.param request "path" in
     let[@alert "-deprecated"] path = Dream.path request in
-    let path =
-      if List.hd path = "dashboard" then [ before ] else before :: path
-    in
+    let path = if List.hd path = "dashboard" then List.tl path else path in
     Files_db.fetch Files_db.branch >>= fun np ->
     let* folder = Files_db.folder path np in
     Files_db.config_file path np >>= fun config ->
@@ -518,13 +501,11 @@ module Promises = struct
     Files_db.scripts scripts np >>= fun scripts ->
     Pages.Promises.config_edit_content folder scripts config request |> respond
 
-  let resolve_path_details path request =
+  let resolve_path_details path _request =
     if List.hd path = "dashboard" then
-      let name = Dream.param request "path" in
+      let name = path |> List.tl |> List.hd in
       (name, [ inputs ], [ outputs ], name)
     else
-      let before = Dream.param request "path" in
-      let path = before :: path in
       let name = Files.last_element path |> Option.value ~default:"" in
       let path = path |> List.rev |> List.tl |> List.rev in
       ( name,
@@ -578,17 +559,7 @@ module Promises = struct
 
   let output_file request =
     let[@alert "-deprecated"] path = Dream.path request in
-    let name, out_where =
-      if List.hd path = "dashboard" then
-        let name = Dream.param request "path" in
-        (name, [ outputs ])
-      else
-        let before = Dream.param request "path" in
-        let path = before :: path in
-        let name = Files.last_element path |> Option.value ~default:"" in
-        let path = path |> List.rev |> List.tl |> List.rev in
-        (name, [ outputs ] @ path)
-    in
+    let name, _, out_where, _ = resolve_path_details path request in
     Files_db.fetch Files_db.branch
     >>= Files_db.get_output ~where:out_where ~name
     >>= static (Dream.mime_lookup name)
