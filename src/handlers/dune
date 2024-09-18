@@ -1,0 +1,6 @@
+(library
+ (name handlers)
+ (package website)
+ (libraries dream pages xlsx2csv lwt pipeline_status tyxml website_lib)
+ (preprocess
+  (pps lwt_ppx tyxml-ppx)))

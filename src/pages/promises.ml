@@ -1,7 +1,11 @@
-let dashboard_files inputs request = Dashboard.dashboard_files request inputs
+let dashboard_files ?contrib inputs request =
+  Dashboard.dashboard_files ~contrib request inputs
 
-let config_details config folder request user =
-  Config.config_details config folder user request
+let contributions contribs request =
+  [ Dashboard.contributions request contribs ]
+
+let config_details ?contrib config folder request user =
+  Config.config_details ?contrib config folder user request
 
 let config_edit_content = Config.edit_content
 let file_content = File.file_details

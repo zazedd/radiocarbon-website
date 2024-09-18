@@ -6,82 +6,113 @@ let run handler : ('a, [ `Msg of string ]) result Lwt.t =
 let handler =
   Dream.logger @@ Dream.memory_sessions
   @@ Dream.router
-       [
-         Dream.get "/" @@ Handlers.Get.mainpage;
-         Dream.get "/login" @@ Handlers.Get.login;
-         Dream.get "/register" @@ Handlers.Get.register;
-         Dream.post "/login" @@ Handlers.Post.login;
-         Dream.post "/register" @@ Handlers.Post.register;
-         Dream.get "/logout" @@ Handlers.Post.logout;
-         Dream.scope "/dashboard"
-           [ Session.admin_middleware ]
-           [
-             (* Users *)
-             (* GET *)
-             Dream.get "/users" @@ Handlers.Get.Users.users;
-             Dream.get "/users/add" @@ Handlers.Get.Users.add;
-             Dream.get "/users/:email" @@ Handlers.Get.Users.user;
-             Dream.get "/users/:email/edit" @@ Handlers.Get.Users.edit;
-             (* POST *)
-             Dream.post "/users/add" @@ Handlers.Post.Users.add;
-             Dream.post "/users/:email/edit" @@ Handlers.Post.Users.edit;
-             Dream.post "/users/:email/remove" @@ Handlers.Post.Users.remove;
-             (* Config *)
-             (* GET *)
-             Dream.get "/config/add/**" @@ Handlers.Get.Configs.add;
-             Dream.get "/config/edit/**"
-             @@ Handlers.Get.Configs.edit "/dashboard/get-config-edit";
-             Dream.get "/default_config/edit"
-             @@ Handlers.Get.Configs.edit_default
-                  "/dashboard/get-default-config-edit";
-             (* PROMISES *)
-             Dream.get "/get-config-edit/**" @@ Handlers.Promises.edit_config;
-             Dream.get "/get-default-config-edit"
-             @@ Handlers.Promises.edit_default_config;
-             (* POST *)
-             Dream.post "/config/add/**" @@ Handlers.Post.Configs.add;
-             Dream.post "/config/edit/**" @@ Handlers.Post.Configs.edit;
-             Dream.post "/config/remove/**" @@ Handlers.Post.Configs.remove;
-             Dream.post "/default_config/edit"
-             @@ Handlers.Post.Configs.edit_default;
-             (* Files *)
-             Dream.get "/add-file/**" @@ Handlers.Get.Files.add;
-             Dream.post "/add-file/**" @@ Handlers.Post.Files.add;
-             Dream.post "/add-file/" @@ Handlers.Post.Files.add;
-             Dream.get "/edit-file/**"
-             @@ Handlers.Get.Files.edit "/dashboard/get-edit-file";
-             Dream.post "/edit-file/**" @@ Handlers.Post.Files.edit;
-             Dream.post "/remove-file/**" @@ Handlers.Post.Files.remove;
-             Dream.get "/add-folder/**" @@ Handlers.Get.Files.add_folder;
-             Dream.post "/add-folder/**" @@ Handlers.Post.Files.add_folder;
-             Dream.get "/rename-folder/**" @@ Handlers.Get.Files.rename_folder;
-             Dream.post "/rename-folder/**" @@ Handlers.Post.Files.rename_folder;
-             Dream.post "/remove-folder/**" @@ Handlers.Post.Files.remove_folder;
-             Dream.get "/get-edit-file/**"
-             @@ Handlers.Promises.edit_file_content;
-           ];
-         Dream.scope "/dashboard" [ Session.all_middleware ]
-           [
-             Dream.get "" @@ Handlers.Get.dashboard "/dashboard/get-files";
-             (* Configs *)
-             Dream.get "/configs/**"
-             @@ Handlers.Get.Configs.config "/dashboard/get-config";
-             (* PROMISES *)
-             Dream.get "/get-config/**" @@ Handlers.Promises.config_details;
-             (* Files *)
-             Dream.get "/inputs/**"
-             @@ Handlers.Get.Files.file "/dashboard/get-file";
-             Dream.get "/get-files" @@ Handlers.Promises.dashboard_files;
-             Dream.get "/get-file/**" @@ Handlers.Promises.file_details;
-             (* Outputs *)
-             Dream.get "/outputs/**"
-             @@ Handlers.Get.Files.output "/dashboard/get-output";
-             Dream.get "/get-output/**" @@ Handlers.Promises.output;
-             Dream.get "/get-output-file/**" @@ Handlers.Promises.output_file;
-             Dream.get "/get-pipeline-status/topbar"
-             @@ Handlers.Promises.pipeline_status_topbar;
-             Dream.get "/get-pipeline-status/popup"
-             @@ Handlers.Promises.pipeline_status_popup;
-           ];
-         Dream.get "/assets/**" @@ Dream.static "./website/assets";
-       ]
+       begin
+         [
+           (* NO LOGIN REQUIRED *)
+           Dream.get "/" @@ Handlers.General.Get.mainpage;
+           Dream.get "/login" @@ Handlers.General.Get.login;
+           Dream.get "/register" @@ Handlers.General.Get.register;
+           Dream.post "/login" @@ Handlers.General.Post.login;
+           Dream.post "/register" @@ Handlers.General.Post.register;
+           Dream.get "/logout" @@ Handlers.General.Post.logout;
+           (* ADMIN *)
+           Dream.scope "/dashboard"
+             [ Session.admin_middleware ] (* Users *)
+             [
+               (* GET *)
+               Dream.get "/users" @@ Handlers.Users.Get.users;
+               Dream.get "/users/add" @@ Handlers.Users.Get.add;
+               Dream.get "/users/:email" @@ Handlers.Users.Get.user;
+               Dream.get "/users/:email/edit" @@ Handlers.Users.Get.edit;
+               (* POST *)
+               Dream.post "/users/add" @@ Handlers.Users.Post.add;
+               Dream.post "/users/:email/edit" @@ Handlers.Users.Post.edit;
+               Dream.post "/users/:email/remove" @@ Handlers.Users.Post.remove;
+             ];
+           Dream.scope "/dashboard"
+             [ Session.admin_and_contrib_middleware ] (* Config *)
+             [
+               (* GET *)
+               Dream.get "/config/add/**" @@ Handlers.Configs.Get.add;
+               Dream.get "/config/edit/**"
+               @@ Handlers.Configs.Get.edit "/dashboard/get-config-edit";
+               Dream.get "/default_config/edit"
+               @@ Handlers.Configs.Get.edit_default
+                    "/dashboard/get-default-config-edit";
+               (* PROMISES *)
+               Dream.get "/get-config-edit/**" @@ Handlers.Configs.Promises.edit;
+               Dream.get "/get-default-config-edit"
+               @@ Handlers.Configs.Promises.edit_default;
+               (* POST *)
+               Dream.post "/config/add/**" @@ Handlers.Configs.Post.add;
+               Dream.post "/config/edit/**" @@ Handlers.Configs.Post.edit;
+               Dream.post "/config/remove/**" @@ Handlers.Configs.Post.remove;
+               Dream.post "/default_config/edit"
+               @@ Handlers.Configs.Post.edit_default;
+             ];
+           Dream.scope "/dashboard"
+             [ Session.admin_and_contrib_middleware ] (* Files *)
+             [
+               Dream.get "/add-file/**" @@ Handlers.Files.Get.add;
+               Dream.post "/add-file/**" @@ Handlers.Files.Post.add;
+               Dream.post "/add-file/" @@ Handlers.Files.Post.add;
+               Dream.get "/edit-file/**"
+               @@ Handlers.Files.Get.edit "/dashboard/get-edit-file";
+               Dream.post "/edit-file/**" @@ Handlers.Files.Post.edit;
+               Dream.post "/remove-file/**" @@ Handlers.Files.Post.remove;
+               Dream.get "/add-folder/**" @@ Handlers.Files.Get.add_folder;
+               Dream.post "/add-folder/**" @@ Handlers.Files.Post.add_folder;
+               Dream.get "/rename-folder/**" @@ Handlers.Files.Get.rename_folder;
+               Dream.post "/rename-folder/**"
+               @@ Handlers.Files.Post.rename_folder;
+               Dream.post "/remove-folder/**"
+               @@ Handlers.Files.Post.remove_folder;
+               Dream.get "/get-edit-file/**" @@ Handlers.Files.Promises.edit;
+             ];
+           (* EVERYONE *)
+           Dream.scope "/dashboard" [ Session.all_middleware ]
+             (* PAGES *)
+             [
+               (* Dashboard*)
+               Dream.get ""
+               @@ Handlers.General.Get.dashboard "/dashboard/get-files"
+                    "/dashboard/get-contribs";
+               (* Configs *)
+               Dream.get "/configs/**"
+               @@ Handlers.Configs.Get.config "/dashboard/get-config";
+               (* Files *)
+               Dream.get "/inputs/**"
+               @@ Handlers.Files.Get.file "/dashboard/get-file";
+               (* Outputs *)
+               Dream.get "/outputs/**"
+               @@ Handlers.Files.Get.output "/dashboard/get-output";
+               (* Contributions *)
+               Dream.get "/add-contrib" @@ Handlers.Contributions.Get.add;
+               Dream.post "/add-contrib" @@ Handlers.Contributions.Post.add;
+             ];
+           Dream.scope "/dashboard"
+             [ Session.all_middleware ] (* PROMISES *)
+             [
+               (* Configs *)
+               Dream.get "/get-config/**" @@ Handlers.Configs.Promises.details;
+               (* Files *)
+               Dream.get "/get-files"
+               @@ Handlers.General.Promises.dashboard_files;
+               Dream.get "/get-file/**" @@ Handlers.Files.Promises.details;
+               (* Outputs *)
+               Dream.get "/get-output/**" @@ Handlers.Files.Promises.output;
+               Dream.get "/get-output-file/**"
+               @@ Handlers.Files.Promises.output_file;
+               (* Contributions *)
+               Dream.get "/get-contribs"
+               @@ Handlers.General.Promises.contribution_branches;
+               (* Status *)
+               Dream.get "/get-pipeline-status/topbar"
+               @@ Handlers.General.Promises.pipeline_status_topbar;
+               Dream.get "/get-pipeline-status/popup"
+               @@ Handlers.General.Promises.pipeline_status_popup;
+             ];
+           (* STATIC *)
+           Dream.get "/assets/**" @@ Dream.static "./website/assets";
+         ]
+       end

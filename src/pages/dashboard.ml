@@ -20,7 +20,7 @@ let no_more_items_no_btn () =
         [ span [ "No more items found." |> txt ] ];
     ]
 
-let no_more_items path ~color_counter ~indent_counter =
+let no_more_items ~contrib path ~color_counter ~indent_counter =
   let open Tyxml.Html in
   div
     ~a:
@@ -42,14 +42,18 @@ let no_more_items path ~color_counter ~indent_counter =
               a
                 ~a:
                   [
-                    a_href ("/dashboard/add-file/" ^ path);
+                    a_href
+                      ("/dashboard/add-file/" ^ path
+                      |> Utils.contrib_query contrib);
                     a_class [ "no-more-button" ];
                   ]
                 [ "new file" |> txt ];
               a
                 ~a:
                   [
-                    a_href ("/dashboard/add-folder/" ^ path);
+                    a_href
+                      ("/dashboard/add-folder/" ^ path
+                      |> Utils.contrib_query contrib);
                     a_class [ "no-more-button" ];
                   ]
                 [ "new folder" |> txt ];
@@ -57,7 +61,8 @@ let no_more_items path ~color_counter ~indent_counter =
         ];
     ]
 
-let rec tree_to_html (tree : Files.Folder.t) (counter : int) () : _ Html.elt =
+let rec tree_to_html ~contrib (tree : Files.Folder.t) (counter : int) () :
+    _ Html.elt =
   let open Tyxml.Html in
   match tree with
   | File { name; path; _ } ->
@@ -69,7 +74,9 @@ let rec tree_to_html (tree : Files.Folder.t) (counter : int) () : _ Html.elt =
             a
               ~a:
                 [
-                  a_href ("/dashboard/" ^ Fpath.to_string path);
+                  a_href
+                    ("/dashboard" ^ Fpath.to_string path
+                    |> Utils.contrib_query contrib);
                   a_class [ "file"; "w-dropdown-link" ];
                   a_style ("background-color: " ^ color_from_counter counter);
                 ]
@@ -87,12 +94,12 @@ let rec tree_to_html (tree : Files.Folder.t) (counter : int) () : _ Html.elt =
         (* else *)
         files
         |> List.sort (fun a b -> Files.Folder.compare b a)
-        |> List.map (fun file -> tree_to_html file (counter + 1) ())
+        |> List.map (fun file -> tree_to_html ~contrib file (counter + 1) ())
       in
       let files_html =
         files_html
         @ [
-            no_more_items
+            no_more_items ~contrib
               (shortened_path |> Fpath.to_string)
               ~color_counter:(counter - 1) ~indent_counter:(counter + 2);
           ]
@@ -124,7 +131,8 @@ let rec tree_to_html (tree : Files.Folder.t) (counter : int) () : _ Html.elt =
                       [
                         a_href
                           ("/dashboard/configs/"
-                          ^ (shortened_path |> Fpath.to_string));
+                           ^ (shortened_path |> Fpath.to_string)
+                          |> Utils.contrib_query contrib);
                         a_class [ "w-button"; "folder-button" ];
                       ]
                     [ "configure" |> txt ];
@@ -159,7 +167,7 @@ let rec tree_to_html (tree : Files.Folder.t) (counter : int) () : _ Html.elt =
 let sidebar (user : User.t_no_pw) =
   General.sidebar "DASHBOARD" ("Welcome, " ^ user.full_name)
 
-let dashboard_files _request (inputs : Files.Folder.t) =
+let dashboard_files ?(contrib = None) _request (inputs : Files.Folder.t) =
   let open Tyxml.Html in
   [
     div
@@ -167,14 +175,57 @@ let dashboard_files _request (inputs : Files.Folder.t) =
       begin
         match inputs with
         | Folder { files; _ } ->
-            if List.length files = 1 then [ no_more_items_no_btn () ]
-            else
-              files
-              |> List.sort (fun a b -> Files.Folder.compare b a)
-              |> List.map (fun files -> tree_to_html files 0 ())
+            if List.length files = 0 then [ no_more_items_no_btn () ]
+            else begin
+              match List.hd files with
+              | File { name = ".ign"; _ } -> [ no_more_items_no_btn () ]
+              | _ ->
+                  files
+                  |> List.sort (fun a b -> Files.Folder.compare b a)
+                  |> List.map (fun files -> tree_to_html ~contrib files 0 ())
+            end
         | File _ -> assert false
       end;
   ]
+
+let contributions _request (contribs : Contributions.t list) =
+  let open Tyxml.Html in
+  let open Contributions in
+  let redir id =
+    a
+      ~a:
+        [
+          a_href
+            ("/dashboard" |> Utils.add_contribution_query (id |> string_of_int));
+        ]
+  in
+  let contribution (contrib : Contributions.t) =
+    tr
+      ~a:[ a_class [ "contribution-table" ] ]
+      [
+        td
+          ~a:[ a_class [ "contributions-left" ] ]
+          [ redir contrib.id [ txt ("#" ^ string_of_int contrib.id) ] ];
+        td ~a:[ a_class [ "contributions-middle" ] ] [ txt contrib.title ];
+        td
+          ~a:[ a_class [ "contributions-right" ] ]
+          [
+            span ~a:[ a_style "color: grey" ] [ txt "By: " ]; txt contrib.email;
+          ];
+      ]
+  in
+  let unmerged =
+    contribs
+    |> List.filter (fun c -> match c.status with `Merged -> false | _ -> true)
+  in
+  if List.length unmerged = 0 then no_more_items_no_btn ()
+  else
+    div
+      [
+        table
+          ~a:[ a_style "border-collapse: collapse; width: 100%;" ]
+          (unmerged |> List.map contribution);
+      ]
 
 let dashboard _request (user : User.t_no_pw) =
   let open Tyxml.Html in
@@ -201,7 +252,7 @@ let dashboard _request (user : User.t_no_pw) =
                               div
                                 ~a:[ a_class [ "panel-icon-wrap" ] ]
                                 [
-                                  img ~alt:"" ~src:"assets/icons/files.svg"
+                                  img ~alt:"" ~src:"/assets/icons/files.svg"
                                     ~a:[ a_class [ "panel-head-img" ] ]
                                     ();
                                 ];
@@ -215,34 +266,32 @@ let dashboard _request (user : User.t_no_pw) =
                                     ~a:[ a_class [ "panel-filter" ] ]
                                     [ txt "for calibration" ];
                                 ];
-                              a
-                                ~a:
-                                  [
-                                    a_href "/dashboard/add-file/";
-                                    a_class [ "edit-button"; "w-button" ];
-                                    a_style "padding-bottom: 14px;";
-                                  ]
-                                [ txt "ADD FILE" ];
-                              a
-                                ~a:
-                                  [
-                                    a_href "/dashboard/add-folder/";
-                                    a_class [ "edit-button"; "w-button" ];
-                                    a_style "padding-bottom: 14px;";
-                                  ]
-                                [ txt "ADD FOLDER" ];
-                              div
-                                ~a:[ a_class [ "panel-count-wrap" ] ]
-                                [
-                                  div
-                                    ~a:[ a_class [ "counter1" ] ]
-                                    [
-                                      (* Files.Folder.csv_count 0 inputs *)
-                                      (* |> string_of_int |> txt; *)
-                                      (* TODO: THIS NEEDS TO LOAD IN *)
-                                      txt "000";
-                                    ];
-                                ];
+                              (if
+                                 user.account_type = `Admin
+                                 || user.account_type = `ElevatedUser
+                               then
+                                 a
+                                   ~a:
+                                     [
+                                       a_href "/dashboard/add-file/";
+                                       a_class [ "edit-button"; "w-button" ];
+                                       a_style "padding-bottom: 14px;";
+                                     ]
+                                   [ txt "ADD FILE" ]
+                               else a []);
+                              (if
+                                 user.account_type = `Admin
+                                 || user.account_type = `ElevatedUser
+                               then
+                                 a
+                                   ~a:
+                                     [
+                                       a_href "/dashboard/add-folder/";
+                                       a_class [ "edit-button"; "w-button" ];
+                                       a_style "padding-bottom: 14px;";
+                                     ]
+                                   [ txt "ADD FOLDER" ]
+                               else a []);
                             ];
                           div
                             ~a:[ a_class [ "panel-body" ] ]
@@ -284,161 +333,20 @@ let dashboard _request (user : User.t_no_pw) =
                                     ~a:[ a_class [ "panel-filter" ] ]
                                     [ txt "(external)" ];
                                 ];
-                              div
-                                ~a:[ a_class [ "panel-count-wrap" ] ]
-                                [
-                                  div
-                                    ~a:[ a_class [ "counter1" ] ]
-                                    [ txt "000" ];
-                                ];
+                              a
+                                ~a:
+                                  [
+                                    a_href "/dashboard/add-contrib";
+                                    a_class [ "edit-button"; "w-button" ];
+                                    a_style "padding-bottom: 14px;";
+                                  ]
+                                [ txt "CONTRIBUTE" ];
                             ];
                           div
                             ~a:[ a_class [ "panel-body" ] ]
-                            [ no_more_items_no_btn () ];
+                            [ div ~a:[ a_id "contribution_content" ] [] ];
                         ];
                     ];
-                  (* div *)
-                  (*   ~a:[ a_class [ "db-panel" ] ] [*)
-                  (* div *)
-                  (*   ~a:[ a_class [ "db-panel-container" ] ] *)
-                  (*   [ *)
-                  (* div *)
-                  (*   ~a:[ a_class [ "panel-head" ] ] *)
-                  (*   [ *)
-                  (*     div *)
-                  (*       ~a:[ a_class [ "panel-icon-wrap" ] ] *)
-                  (*       [ *)
-                  (*         img ~alt:"" *)
-                  (*           ~src:"/assets/icons/three_lines.svg" *)
-                  (*           ~a:[ a_class [ "panel-head-img" ] ] *)
-                  (*           (); *)
-                  (*       ]; *)
-                  (*     div *)
-                  (*       ~a:[ a_class [ "panel-name-wrap" ] ] *)
-                  (*       [ *)
-                  (*         div *)
-                  (*           ~a:[ a_class [ "panel-name" ] ] *)
-                  (*           [ txt "SORY by GENRE" ]; *)
-                  (*       ]; *)
-                  (*   ]; *)
-                  (* div *)
-                  (*   ~a:[ a_class [ "panel-body" ] ] *)
-                  (*   [ *)
-                  (*     div *)
-                  (*       ~a:[ a_class [ "panel-list" ] ] *)
-                  (*       [ *)
-                  (*         a *)
-                  (*           ~a: *)
-                  (*             [ *)
-                  (*               a_href ""; *)
-                  (*               a_class *)
-                  (*                 [ *)
-                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
-                  (*                 ]; *)
-                  (*             ] *)
-                  (*           [ *)
-                  (*             div *)
-                  (*               ~a:[ a_class [ "panel-col" ] ] *)
-                  (*               [ *)
-                  (*                 div *)
-                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
-                  (*                   [ txt "Photography" ]; *)
-                  (*               ]; *)
-                  (*           ]; *)
-                  (*         a *)
-                  (*           ~a: *)
-                  (*             [ *)
-                  (*               a_href ""; *)
-                  (*               a_class *)
-                  (*                 [ *)
-                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
-                  (*                 ]; *)
-                  (*             ] *)
-                  (*           [ *)
-                  (*             div *)
-                  (*               ~a:[ a_class [ "panel-col" ] ] *)
-                  (*               [ *)
-                  (*                 div *)
-                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
-                  (*                   [ txt "Graphic" ]; *)
-                  (*               ]; *)
-                  (*           ]; *)
-                  (*         a *)
-                  (*           ~a: *)
-                  (*             [ *)
-                  (*               a_href ""; *)
-                  (*               a_class *)
-                  (*                 [ *)
-                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
-                  (*                 ]; *)
-                  (*             ] *)
-                  (*           [ *)
-                  (*             div *)
-                  (*               ~a:[ a_class [ "panel-col" ] ] *)
-                  (*               [ *)
-                  (*                 div *)
-                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
-                  (*                   [ txt "Object" ]; *)
-                  (*               ]; *)
-                  (*           ]; *)
-                  (*         a *)
-                  (*           ~a: *)
-                  (*             [ *)
-                  (*               a_href ""; *)
-                  (*               a_class *)
-                  (*                 [ *)
-                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
-                  (*                 ]; *)
-                  (*             ] *)
-                  (*           [ *)
-                  (*             div *)
-                  (*               ~a:[ a_class [ "panel-col" ] ] *)
-                  (*               [ *)
-                  (*                 div *)
-                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
-                  (*                   [ txt "Painting" ]; *)
-                  (*               ]; *)
-                  (*           ]; *)
-                  (*         a *)
-                  (*           ~a: *)
-                  (*             [ *)
-                  (*               a_href ""; *)
-                  (*               a_class *)
-                  (*                 [ *)
-                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
-                  (*                 ]; *)
-                  (*             ] *)
-                  (*           [ *)
-                  (*             div *)
-                  (*               ~a:[ a_class [ "panel-col" ] ] *)
-                  (*               [ *)
-                  (*                 div *)
-                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
-                  (*                   [ txt "Drawing" ]; *)
-                  (*               ]; *)
-                  (*           ]; *)
-                  (*         a *)
-                  (*           ~a: *)
-                  (*             [ *)
-                  (*               a_href ""; *)
-                  (*               a_class *)
-                  (*                 [ *)
-                  (*                   "panel-row"; "h30"; "w-inline-block"; *)
-                  (*                 ]; *)
-                  (*             ] *)
-                  (*           [ *)
-                  (*             div *)
-                  (*               ~a:[ a_class [ "panel-col" ] ] *)
-                  (*               [ *)
-                  (*                 div *)
-                  (*                   ~a:[ a_class [ "panel-col-text" ] ] *)
-                  (*                   [ txt "Collage" ]; *)
-                  (*               ]; *)
-                  (*           ]; *)
-                  (*       ]; *)
-                  (*     ]; *)
-                  (* ]; *)
-                  (* ]; *)
                 ];
             ];
         ];

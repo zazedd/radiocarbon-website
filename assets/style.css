@@ -2157,11 +2157,12 @@ label {
 
 .loader-container {
   display: grid;
+  height: 100%;
   place-content: center;
 }
 
 .loader {
-  margin-top: 250px;
+  margin-top: 75px;
   width: 20px;
   aspect-ratio: 1;
   border-radius: 50%;
@@ -2400,4 +2401,25 @@ label {
 .file-edit-text {
   margin-top: 3px;
   margin-left: 15px;
+}
+
+.contribution-table {
+  border: 1px solid #e3e3e3;
+  line-height: 40px;
+}
+
+.contributions-left {
+  padding-left: 10px;
+  color: gray; 
+  width: 55px;
+}
+
+.contributions-middle {
+  color: black;
+}
+
+.contributions-right {
+  padding-right: 10px;
+  color: black;
+  text-align: right;
 }

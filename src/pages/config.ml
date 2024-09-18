@@ -1,9 +1,60 @@
+open Tyxml.Html
 open Website_lib
 
+let config_contrib_head ~(contrib : Contributions.t) (config : Files_db.config)
+    (user : User.t_no_pw) folder_path request =
+  if contrib.email = user.email || user.account_type = `Admin then
+    let id = Some (contrib.id |> string_of_int) in
+    [
+      (if config.typ = `Custom then
+         a
+           ~a:
+             [
+               a_class [ "edit-button"; "w-button" ];
+               a_href
+                 ("/dashboard/config/edit/" ^ folder_path
+                 |> Utils.contrib_query id);
+             ]
+           [ txt "EDIT CONFIG" ]
+       else a []);
+      (if config.typ = `Custom then
+         form
+           ~a:
+             [
+               a_action
+                 ("/dashboard/config/remove/" ^ folder_path
+                 |> Utils.contrib_query id);
+               a_method `Post;
+             ]
+           [
+             Unsafe.data (Dream.csrf_tag request);
+             input
+               ~a:[ a_input_type `Hidden; a_name "hidden"; a_value "hidden" ]
+               ();
+             button
+               ~a:
+                 [
+                   a_class [ "edit-button"; "w-button" ];
+                   a_style "padding-bottom: 14px;";
+                 ]
+               [ txt "REMOVE CONFIG" ];
+           ]
+       else a []);
+      a
+        ~a:
+          [
+            a_class [ "edit-button"; "w-button" ];
+            a_href
+              ("/dashboard/rename-folder/" ^ folder_path
+              |> Utils.contrib_query id);
+          ]
+        [ txt "EDIT FOLDER" ];
+    ]
+  else []
+
 (* also has remove folder button *)
-let config_head request (user : User.t_no_pw) (config : Files_db.config)
-    folder_path =
-  let open Tyxml.Html in
+let config_head request ?contrib (user : User.t_no_pw)
+    (config : Files_db.config) folder_path =
   begin
     div
       ~a:[ a_class [ "panel-head" ] ]
@@ -25,75 +76,86 @@ let config_head request (user : User.t_no_pw) (config : Files_db.config)
             ];
         ]
         @
-        if user.account_type = `Admin then
-          [
-            a
-              ~a:
-                [
-                  a_class [ "edit-button"; "w-button" ];
-                  a_href
-                    (if config.typ = `Default then
-                       "/dashboard/default_config/edit"
-                     else "/dashboard/config/edit/" ^ folder_path);
-                ]
-              [ txt "EDIT CONFIG" ];
-            (if config.typ = `Custom then
-               form
-                 ~a:
-                   [
-                     a_action ("/dashboard/config/remove/" ^ folder_path);
-                     a_method `Post;
-                   ]
-                 [
-                   Unsafe.data (Dream.csrf_tag request);
-                   input
-                     ~a:
-                       [
-                         a_input_type `Hidden; a_name "hidden"; a_value "hidden";
-                       ]
-                     ();
-                   button
-                     ~a:
-                       [
-                         a_class [ "edit-button"; "w-button" ];
-                         a_style "padding-bottom: 14px;";
-                       ]
-                     [ txt "REMOVE CONFIG" ];
-                 ]
-             else a []);
-            a
-              ~a:
-                [
-                  a_class [ "edit-button"; "w-button" ];
-                  a_href ("/dashboard/rename-folder/" ^ folder_path);
-                ]
-              [ txt "EDIT FOLDER" ];
-            form
-              ~a:
-                [
-                  a_action ("/dashboard/remove-folder/" ^ folder_path);
-                  a_method `Post;
-                ]
+        match contrib with
+        | Some contrib ->
+            config_contrib_head ~contrib config user folder_path request
+        | None ->
+            if user.account_type = `Admin then
               [
-                Unsafe.data (Dream.csrf_tag request);
-                input
-                  ~a:[ a_input_type `Hidden; a_name "hidden"; a_value "hidden" ]
-                  ();
-                button
+                a
                   ~a:
                     [
-                      a_class [ "delete-button"; "w-button" ];
-                      a_id "delete-button";
-                      a_style "padding-bottom: 14px;";
+                      a_class [ "edit-button"; "w-button" ];
+                      a_href
+                        (if config.typ = `Default then
+                           "/dashboard/default_config/edit"
+                         else "/dashboard/config/edit/" ^ folder_path);
                     ]
-                  [ txt "DELETE FOLDER" ];
-              ];
-          ]
-        else []
+                  [ txt "EDIT CONFIG" ];
+                (if config.typ = `Custom then
+                   form
+                     ~a:
+                       [
+                         a_action ("/dashboard/config/remove/" ^ folder_path);
+                         a_method `Post;
+                       ]
+                     [
+                       Unsafe.data (Dream.csrf_tag request);
+                       input
+                         ~a:
+                           [
+                             a_input_type `Hidden;
+                             a_name "hidden";
+                             a_value "hidden";
+                           ]
+                         ();
+                       button
+                         ~a:
+                           [
+                             a_class [ "edit-button"; "w-button" ];
+                             a_style "padding-bottom: 14px;";
+                           ]
+                         [ txt "REMOVE CONFIG" ];
+                     ]
+                 else a []);
+                a
+                  ~a:
+                    [
+                      a_class [ "edit-button"; "w-button" ];
+                      a_href ("/dashboard/rename-folder/" ^ folder_path);
+                    ]
+                  [ txt "EDIT FOLDER" ];
+                form
+                  ~a:
+                    [
+                      a_action ("/dashboard/remove-folder/" ^ folder_path);
+                      a_method `Post;
+                    ]
+                  [
+                    Unsafe.data (Dream.csrf_tag request);
+                    input
+                      ~a:
+                        [
+                          a_input_type `Hidden;
+                          a_name "hidden";
+                          a_value "hidden";
+                        ]
+                      ();
+                    button
+                      ~a:
+                        [
+                          a_class [ "delete-button"; "w-button" ];
+                          a_id "delete-button";
+                          a_style "padding-bottom: 14px;";
+                        ]
+                      [ txt "DELETE FOLDER" ];
+                  ];
+              ]
+            else []
       end
   end
 
-let config_details (config : Files_db.config) (folder : Files.Folder.t)
+let config_details ?contrib (config : Files_db.config) (folder : Files.Folder.t)
     (user : User.t_no_pw) request =
   let folder_path =
     match folder with Folder { path; _ } -> path | _ -> assert false
@@ -104,7 +166,7 @@ let config_details (config : Files_db.config) (folder : Files.Folder.t)
   in
   let open Tyxml.Html in
   [
-    config_head request user config folder_path;
+    config_head ?contrib request user config folder_path;
     div
       ~a:[ a_class [ "panel-body" ] ]
       [
@@ -152,29 +214,64 @@ let config_details (config : Files_db.config) (folder : Files.Folder.t)
                                  ];
                              ];
                          ];
-                       (if user.account_type = `Admin then begin
-                          div
-                            ~a:
-                              [
-                                a_class
-                                  [ "config-column-right"; "w-col"; "w-col-2" ];
-                              ]
-                            [
-                              a
-                                ~a:
-                                  [
-                                    a_href
-                                      ("/dashboard/config/add/" ^ folder_path);
-                                    a_style "\n  text-decoration: none;";
-                                  ]
-                                [
-                                  div
-                                    ~a:[ a_class [ "new-config-button" ] ]
-                                    [ txt "Create Custom Configuration" ];
-                                ];
-                            ]
-                        end
-                        else a []);
+                       (match contrib with
+                       | Some contrib -> begin
+                           if
+                             contrib.email = user.email
+                             || user.account_type = `Admin
+                           then
+                             div
+                               ~a:
+                                 [
+                                   a_class
+                                     [
+                                       "config-column-right"; "w-col"; "w-col-2";
+                                     ];
+                                 ]
+                               [
+                                 a
+                                   ~a:
+                                     [
+                                       a_href
+                                         ("/dashboard/config/add/" ^ folder_path
+                                         |> Utils.add_contribution_query
+                                              (contrib.id |> string_of_int));
+                                       a_style "\n  text-decoration: none;";
+                                     ]
+                                   [
+                                     div
+                                       ~a:[ a_class [ "new-config-button" ] ]
+                                       [ txt "Create Custom Configuration" ];
+                                   ];
+                               ]
+                           else a []
+                         end
+                       | None ->
+                           if user.account_type = `Admin then begin
+                             div
+                               ~a:
+                                 [
+                                   a_class
+                                     [
+                                       "config-column-right"; "w-col"; "w-col-2";
+                                     ];
+                                 ]
+                               [
+                                 a
+                                   ~a:
+                                     [
+                                       a_href
+                                         ("/dashboard/config/add/" ^ folder_path);
+                                       a_style "\n  text-decoration: none;";
+                                     ]
+                                   [
+                                     div
+                                       ~a:[ a_class [ "new-config-button" ] ]
+                                       [ txt "Create Custom Configuration" ];
+                                   ];
+                               ]
+                           end
+                           else a []);
                      ]
                  else
                    h5
@@ -366,7 +463,7 @@ let config _request =
         ];
     ]
 
-let edit_content (folder : Files.Folder.t) (scripts : string list)
+let edit_content ?contrib_id (folder : Files.Folder.t) (scripts : string list)
     (config : Files_db.config) request =
   let folder_path =
     match folder with Folder { path; _ } -> path | _ -> assert false
@@ -427,6 +524,7 @@ let edit_content (folder : Files.Folder.t) (scripts : string list)
                       a_action
                         (if config.typ = `Custom then
                            "/dashboard/config/edit/" ^ folder_path
+                           |> Utils.contrib_query contrib_id
                          else "/dashboard/default_config/edit");
                     ]
                   [
@@ -563,7 +661,7 @@ let edit _request =
         ];
     ]
 
-let add (folder : Files.Folder.t) (scripts : string list) request =
+let add ?contrib_id (folder : Files.Folder.t) (scripts : string list) request =
   let folder_path =
     match folder with Folder { path; _ } -> path | _ -> assert false
   in
@@ -636,7 +734,9 @@ let add (folder : Files.Folder.t) (scripts : string list) request =
                                             a_aria "label" [ "Email Form" ];
                                             a_action
                                               ("/dashboard/config/add/"
-                                             ^ folder_path);
+                                               ^ folder_path
+                                              |> Utils.contrib_query contrib_id
+                                              );
                                           ]
                                         [
                                           Unsafe.data (Dream.csrf_tag request);

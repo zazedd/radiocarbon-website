@@ -1,7 +1,5 @@
-open Lwt.Infix
 open Lwt.Syntax
-module Store = Files.Store
-module Tree = Store.Tree
+open Lwt.Infix
 
 let branch = Db_config.branch
 let inputs = Db_config.inputs
@@ -63,7 +61,36 @@ let push branch =
   let* repo = Files.Store.Repo.v Db_config.Pipeline.c in
   Files.push ~ctx ~repo ~branch
 
-let handle_write_error (e : (_, Store.write_error) result) =
+let fetch_all () =
+  Files.ctx () >>= fun ctx ->
+  let* repo = Files.Store.Repo.v Db_config.Pipeline.c in
+  Files.fetch_all ~ctx ~repo >|= fun res -> (res, repo)
+
+let branch_names () =
+  fetch_all () >|= fun (res, repo) ->
+  match res with
+  | Ok _ -> Ok (Files.Store.Branch.list repo)
+  | Error _ as err -> err
+
+let add_branch ~name =
+  fetch Db_config.branch >>= fun (node, repo) ->
+  match node with
+  | Ok _ -> begin
+      let* () =
+        Files.Store.main repo >>= Files.Store.Head.get
+        >>= Files.Store.Branch.set repo name
+      in
+      push name
+      >|= begin
+            function
+            | Ok () -> Ok (node, repo)
+            | Error (`Msg msg) -> Error msg
+            | Error `Detached_head -> Error "Detached head"
+          end
+    end
+  | Error (`Msg msg) -> Error msg |> Lwt.return
+
+let handle_write_error (e : (_, Files.Store.write_error) result) =
   match e with
   | Error (`Conflict str) -> Error ("Database merging conflict! " ^ str)
   | Error (`Too_many_retries i) -> Error ("Too many retries: " ^ string_of_int i)
@@ -71,7 +98,7 @@ let handle_write_error (e : (_, Store.write_error) result) =
 
 (* GETS *)
 
-let all_files (node, repo) =
+let all_files ?(branch = branch) (node, repo) =
   match node with
   | Ok _ ->
       let* tree =
@@ -80,7 +107,7 @@ let all_files (node, repo) =
       Files.Folder.get_custom_tree ~order:`Sorted ~tree ~where:[ inputs ]
   | Error (`Msg msg) -> failwith msg
 
-let folder folder_name (node, repo) : Files.Folder.t Lwt.t =
+let folder ?(branch = branch) folder_name (node, repo) : Files.Folder.t Lwt.t =
   match node with
   | Ok _ ->
       let* tree =
@@ -90,7 +117,7 @@ let folder folder_name (node, repo) : Files.Folder.t Lwt.t =
         ~where:(inputs :: folder_name)
   | Error (`Msg msg) -> failwith msg
 
-let config_file folder_name (node, repo) : config Lwt.t =
+let config_file ?(branch = branch) folder_name (node, repo) : config Lwt.t =
   match node with
   | Ok _ ->
       Files.Store.of_branch repo branch >>= fun t ->
@@ -105,23 +132,24 @@ let config_file folder_name (node, repo) : config Lwt.t =
       end
   | Error (`Msg msg) -> failwith msg
 
-let scripts script_folder (node, repo) : string list Lwt.t =
+let scripts ?(branch = branch) script_folder (node, repo) : string list Lwt.t =
   match node with
   | Ok _ ->
       let* tree =
         Files.Store.of_branch repo branch >>= fun t -> Files.Store.get_tree t []
       in
       Files.Folder.file_names ~order:`Undefined ~tree ~where:[ script_folder ]
+      >|= List.filter (( <> ) "README.md")
   | Error (`Msg msg) -> failwith msg
 
-let get_file ~in_where ~out_where ~name (node, repo) =
+let get_file ?(branch = branch) ~in_where ~out_where ~name (node, repo) =
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
       Files.File.get_file ~t ~in_where ~out_where ~name
   | Error (`Msg msg) -> failwith msg
 
-let get_output ~where ~name (node, repo) =
+let get_output ?(branch = branch) ~where ~name (node, repo) =
   match node with
   | Ok _ ->
       let* tree =
@@ -151,11 +179,11 @@ let historic_config_from_commit_hash ~hash ~in_where (node, repo) =
     end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let find_earliest_commit_with_file ~path (node, repo) =
+let find_earliest_commit_with_file ?(branch = branch) ~path (node, repo) =
   match node with
   | Ok _ -> begin
       Files.Store.of_branch repo branch >>= fun t ->
-      Store.last_modified t path >|= fun lst -> Ok (List.hd lst)
+      Files.Store.last_modified t path >|= fun lst -> Ok (List.hd lst)
     end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
@@ -205,8 +233,8 @@ let historic_input_config_and_script ~in_where ~out_where ~name np =
 
 (* SETS / REMOVES / UPDATES *)
 
-let add_config ~user_email ~path ~step ~confidence ~column ~value ~script
-    (node, repo) =
+let add_config ?(branch = branch) ~user_email ~path ~step ~confidence ~column
+    ~value ~script (node, repo) =
   let config_path = path @ [ "config" ] in
   match node with
   | Ok _ ->
@@ -230,8 +258,8 @@ let add_config ~user_email ~path ~step ~confidence ~column ~value ~script
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let update_config ~user_email ~path ~step ~confidence ~column ~value ~script
-    (node, repo) =
+let update_config ?(branch = branch) ~user_email ~path ~step ~confidence ~column
+    ~value ~script (node, repo) =
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
@@ -254,7 +282,7 @@ let update_config ~user_email ~path ~step ~confidence ~column ~value ~script
       else Error "Config does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let remove_config ~user_email ~path (node, repo) =
+let remove_config ?(branch = branch) ~user_email ~path (node, repo) =
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
@@ -277,7 +305,8 @@ let remove_config ~user_email ~path (node, repo) =
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
 (* TODO: Add output folder *)
-let add_folder ~user_email ~in_where ~out_where ~name (node, repo) =
+let add_folder ?(branch = branch) ~user_email ~in_where ~out_where ~name
+    (node, repo) =
   let in_where, out_where =
     let f = List.filter (( <> ) "") in
     (f in_where, f out_where)
@@ -309,7 +338,7 @@ let add_folder ~user_email ~in_where ~out_where ~name (node, repo) =
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
 (* TODO: Remove output folder (MAYBE?) *)
-let remove_folder ~user_email ~path (node, repo) =
+let remove_folder ?(branch = branch) ~user_email ~path (node, repo) =
   let path = List.filter (( <> ) "") path in
   match node with
   | Ok _ ->
@@ -333,8 +362,8 @@ let remove_folder ~user_email ~path (node, repo) =
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
 (* TODO: Rename output folder*)
-let rename_folder ~user_email ~in_where ~out_where ~old_name ~new_name
-    (node, repo) =
+let rename_folder ?(branch = branch) ~user_email ~in_where ~out_where ~old_name
+    ~new_name (node, repo) =
   let in_where, out_where =
     let f = List.filter (( <> ) "") in
     (f in_where, f out_where)
@@ -379,7 +408,7 @@ let rename_folder ~user_email ~in_where ~out_where ~old_name ~new_name
       else Error "Directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let add_file ~user_email ~path ~name ~content (node, repo) =
+let add_file ?(branch = branch) ~user_email ~path ~name ~content (node, repo) =
   let path = List.filter (( <> ) "") path in
   let new_file_path = path @ [ name ] in
   match node with
@@ -403,7 +432,8 @@ let add_file ~user_email ~path ~name ~content (node, repo) =
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let add_files ~user_email ~path ~name ~contents (node, repo) =
+let add_files ?(branch = branch) ~user_email ~path ~name ~contents (node, repo)
+    =
   let path = List.filter (( <> ) "") path in
   match node with
   | Ok _ -> begin
@@ -452,7 +482,7 @@ let add_files ~user_email ~path ~name ~contents (node, repo) =
     end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let edit_file ~user_email ~path content (node, repo) =
+let edit_file ?(branch = branch) ~user_email ~path content (node, repo) =
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
@@ -474,7 +504,8 @@ let edit_file ~user_email ~path content (node, repo) =
       else Error "File does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let remove_file ~user_email ~in_where ~out_where ~name (node, repo) =
+let remove_file ?(branch = branch) ~user_email ~in_where ~out_where ~name
+    (node, repo) =
   let outputs = List.hd out_where in
   let in_path = in_where @ [ name ] in
   match node with

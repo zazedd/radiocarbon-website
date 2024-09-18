@@ -1,27 +1,27 @@
 (* this is what handles server-sent events for updating content that depends
    on Lwt promises.
 *)
-let loader ?(extra_action = "") path =
+let loader ?(extra_action = "") ?(content_div = "content") path =
   let open Tyxml.Html in
   script
     (Unsafe.data
        (Printf.sprintf
           {|
-          function getResolvedLwtPromise () {
-            const content = document.getElementById('content');
+          function getResolvedLwtPromise_%s () {
+            const content = document.getElementById('%s');
             content.innerHTML = `<div class='loader-container'><div class='loader'></div></div>`;
             fetch('%s')
               .then(response => response.text())
-              .then(data => { 
+              .then(data => {
                 content.innerHTML = data;
                 %s;
               })
               .catch(error => content.innerHTML = 'Failed to load.')
           };
 
-          window.onLoad = getResolvedLwtPromise ();
+          window.onLoad = getResolvedLwtPromise_%s ();
         |}
-          path extra_action))
+          content_div content_div path extra_action content_div))
 
 let dropdown =
   let open Tyxml.Html in
@@ -83,7 +83,11 @@ let confirm =
     (Unsafe.data
        {|
           function confirm() {
-            document.getElementById("delete-button").addEventListener("click", function(event) {
+            var btn = document.getElementById("delete-button")
+
+            if (!btn) return;
+
+            btn.addEventListener("click", function(event) {
               if (this.getAttribute("data-confirmed") !== "true") {
                 event.preventDefault(); // Prevent form submission
                 this.textContent = "ARE YOU SURE?"; // Change button text

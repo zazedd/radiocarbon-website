@@ -1,9 +1,8 @@
 open Lwt.Syntax
 open Lwt.Infix
 
-let addr =
-  let x = open_in "env/repo.txt" |> input_line |> String.trim in
-  Smart_git.Endpoint.of_string x |> Result.get_ok
+let rp = open_in "env/repo.txt" |> input_line |> String.trim
+let addr = Smart_git.Endpoint.of_string rp |> Result.get_ok
 
 let key =
   let x = open_in "env/github_sk.pem" |> input_line |> String.trim in
@@ -296,8 +295,25 @@ end
 
 let fetch ~ctx ~repo ~branch =
   Store.Backend.Remote.v repo >>= fun remote ->
+  Logs.info (fun f -> f "Fetching from %s:%s" rp branch);
   Store.Backend.Remote.fetch remote (ctx, addr) branch
 
 let push ~ctx ~repo ~branch =
   Store.Backend.Remote.v repo >>= fun remote ->
+  Logs.info (fun f -> f "Pushing to %s:%s" rp branch);
   Store.Backend.Remote.push remote (ctx, addr) branch
+
+let fetch_all ~ctx ~repo =
+  Store.Backend.Remote.v repo >>= fun remote ->
+  Logs.info (fun f -> f "Fetching everyone from %s" rp);
+  Store.Backend.Remote.fetch_all remote (ctx, addr) >|= fun lst ->
+  let errs = List.filter (function Error _ -> true | Ok _ -> false) lst in
+  match errs with
+  | [] ->
+      Ok
+        (lst
+        |> List.filter_map (function
+             | Ok commit -> Some commit
+             | Error _ -> None))
+  | (Error _ as err) :: _ -> err
+  | _ -> assert false

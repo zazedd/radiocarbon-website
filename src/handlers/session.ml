@@ -1,5 +1,3 @@
-(* open Lwt.Syntax *)
-(* open Lwt.Infix *)
 open Website_lib
 
 let tyxml_list_to_string html =

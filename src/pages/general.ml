@@ -55,7 +55,12 @@ let format_desc desc =
   let paragraphs = List.map (fun line -> p [ txt line ]) lines in
   div paragraphs
 
-let pipeline_popup_content (s : Status.s * string) =
+let pipeline_popup_content ~branch (s : Status.s * string) =
+  let where =
+    if branch = Website_lib.Db_config.branch then " @ Main Database"
+    else
+      " @ Contribution " ^ (branch |> Website_lib.Contributions.remove_contrib)
+  in
   let status_id, desc = s in
   let status, _ = Status.to_strings s in
   let color =
@@ -90,7 +95,7 @@ let pipeline_popup_content (s : Status.s * string) =
                     a_class [ "pipeline-status-status-text" ];
                     a_style ("color: " ^ color);
                   ]
-                [ txt status ];
+                [ txt status; span ~a:[ a_style "color: white" ] [ txt where ] ];
             ];
         ];
       (* Popup details section *)
@@ -173,7 +178,7 @@ let sidebar name text =
           a_id "pipeline-popup-content";
           a_style "display: none; opacity: 0; transition: opacity 0.3s ease;";
         ]
-      [ pipeline_popup_content default_status ];
+      [ pipeline_popup_content ~branch:"contrib_0" default_status ];
     div
       ~a:[ a_class [ "ui-top" ] ]
       [
