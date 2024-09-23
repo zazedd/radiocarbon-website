@@ -109,7 +109,7 @@ let pending_approval _request =
                                 [
                                   div
                                     ~a:[ a_class [ "panel-name" ] ]
-                                    [ txt "Contributions Pending Approval" ];
+                                    [ txt "All Contributions" ];
                                 ];
                             ];
                           div
