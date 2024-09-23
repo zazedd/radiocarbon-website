@@ -23,18 +23,19 @@ module Get = struct
       ]
     in
     match contrib with
-    | Some (Ok contrib) ->
+    | Some (Ok contribution) ->
         let contrib_files_resource_path =
           files_resource_path
-          |> add_contribution_query (contrib.id |> string_of_int)
+          |> add_contribution_query (contribution.id |> string_of_int)
         in
         let extra_scripts =
           Pages.Scripts.loader ~extra_action:"dropdowns ()"
             contrib_files_resource_path
           :: extra_scripts
         in
-        Pages.contribution contrib request
-        |> serve ~contrib ~extra_scripts "Radiocarbon Dashboard"
+        Pages.contribution contribution
+        |> Session.with_user request
+        |> serve ?contrib ~extra_scripts "Radiocarbon Dashboard"
     | Some (Error msg) -> Pages.error ~msg request |> serve msg
     | None ->
         let extra_scripts =
@@ -99,52 +100,13 @@ module Promises = struct
         Files_db.all_files ~branch np >>= fun files ->
         Pages.Promises.dashboard_files files request |> respond
 
-  let contribution_branches request =
-    Files_db.branch_names () >>= function
-    | Ok contribs ->
-        let* c = contribs in
-        let ids =
-          List.filter (String.starts_with ~prefix:"contrib_") c
-          |> List.map (fun x -> Contributions.remove_contrib x)
-        in
-        Lwt_list.map_s
-          (fun id ->
-            Contributions_db.get id
-            >>= begin
-                  function
-                  | Ok contrib -> contrib |> Lwt.return
-                  | Error _ -> (
-                      Logs.info (fun f ->
-                          f "Contrib not in store, adding. %s@." id);
-                      Contributions_db.store id
-                        ("Contribution " ^ id
-                       ^ ", restored from GitHub (database deleted)")
-                        "noone@nowhere.com" ("contribution_" ^ id) `Restored
-                      >|= function
-                      | Ok contrib -> contrib
-                      | Error _ -> assert false)
-                end)
-          ids
-        >>= fun contribs ->
-        Pages.Promises.contributions
-          (List.sort Contributions.compare contribs)
-          request
-        |> respond
-    | Error (`Msg _) -> Dream.empty `Bad_Request
-
   let pipeline_status_topbar request =
     let* branch, _ = branch_and_contrib_from_query request in
-    [
-      Status.get ~branch () |> Option.get
-      |> Pages.Promises.pipeline_topbar_content;
-    ]
+    [ Status.get ~branch () |> Pages.Promises.pipeline_topbar_content ]
     |> respond
 
   let pipeline_status_popup request =
     let* branch, _ = branch_and_contrib_from_query request in
-    [
-      Status.get ~branch () |> Option.get
-      |> Pages.Promises.pipeline_popup_content ~branch;
-    ]
+    [ Status.get ~branch () |> Pages.Promises.pipeline_popup_content ~branch ]
     |> respond
 end

@@ -55,12 +55,15 @@ let format_desc desc =
   let paragraphs = List.map (fun line -> p [ txt line ]) lines in
   div paragraphs
 
-let pipeline_popup_content ~branch (s : Status.s * string) =
+let default_status = (`Waiting, "Waiting for pipeline data")
+
+let pipeline_popup_content ~branch (s : (Status.s * string) option) =
   let where =
     if branch = Website_lib.Db_config.branch then " @ Main Database"
     else
       " @ Contribution " ^ (branch |> Website_lib.Contributions.remove_contrib)
   in
+  let s = Option.value ~default:default_status s in
   let status_id, desc = s in
   let status, _ = Status.to_strings s in
   let color =
@@ -109,7 +112,8 @@ let pipeline_popup_content ~branch (s : Status.s * string) =
         ];
     ]
 
-let pipeline_topbar_content (s : Status.s * string) =
+let pipeline_topbar_content (s : (Status.s * string) option) =
+  let s = Option.value ~default:default_status s in
   let status_id, _ = s in
   let status, _ = Status.to_strings s in
   let icon =
@@ -168,7 +172,7 @@ let pipeline_topbar_content (s : Status.s * string) =
     ]
 
 let sidebar name text =
-  let default_status = (`Waiting, "Waiting for pipeline data") in
+  let default_status = Some default_status in
   let open Tyxml.Html in
   [
     div
@@ -230,7 +234,7 @@ let sidebar name text =
             a
               ~a:
                 [
-                  a_href "/dasboard/contributions";
+                  a_href "/dashboard/contributions";
                   a_class [ "db-nav-item"; "w-inline-block" ];
                 ]
               [

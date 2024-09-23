@@ -21,10 +21,6 @@ let resolve_path_details path _request =
     let path = path |> List.rev |> List.tl |> List.rev in
     (name, inputs :: path, outputs :: path, path @ [ name ] |> String.concat "/")
 
-let add_contribution_query id path =
-  let query = [ ("contribution", [ id ]) ] in
-  Uri.make ~path ~query () |> Uri.to_string
-
 let branch_and_contrib_from_query request =
   match Dream.query request "contribution" with
   | Some id ->
@@ -41,18 +37,31 @@ let redirect_from_query request path =
 
 let redirect_from_contrib contrib path =
   match contrib with
-  | Some contrib ->
+  | Some (Ok contrib) ->
       let uri = Uri.make ~path () in
       Uri.add_query_param uri
         ( "contribution",
           [ Website_lib.Contributions.(contrib.id) |> string_of_int ] )
       |> Uri.to_string
   | None -> path
+  | Some (Error _) -> assert false
 
 let get_resource_path resource_path path_request =
   if List.hd path_request = "dashboard" then
     resource_path ^ (List.tl path_request |> String.concat "/")
   else resource_path ^ "/" ^ (path_request |> String.concat "/")
+
+let add_contribution_query id path =
+  let query = [ ("contribution", [ id ]) ] in
+  Uri.make ~path ~query () |> Uri.to_string
+
+let resource_path_with_query resource_path path_request = function
+  | Some (Ok contrib) ->
+      let open Website_lib.Contributions in
+      get_resource_path resource_path path_request
+      |> add_contribution_query (contrib.id |> string_of_int)
+  | None -> get_resource_path resource_path path_request
+  | Some (Error _) -> assert false
 
 let serve ?contrib ?(extra_scripts = [ Tyxml.Html.(script (txt "")) ]) title
     page =

@@ -6,7 +6,7 @@ let config_contrib_head ~(contrib : Contributions.t) (config : Files_db.config)
   if contrib.email = user.email || user.account_type = `Admin then
     let id = Some (contrib.id |> string_of_int) in
     [
-      (if config.typ = `Custom then
+      (if config.typ <> `Custom then
          a
            ~a:
              [
@@ -82,16 +82,18 @@ let config_head request ?contrib (user : User.t_no_pw)
         | None ->
             if user.account_type = `Admin then
               [
-                a
-                  ~a:
-                    [
-                      a_class [ "edit-button"; "w-button" ];
-                      a_href
-                        (if config.typ = `Default then
-                           "/dashboard/default_config/edit"
-                         else "/dashboard/config/edit/" ^ folder_path);
-                    ]
-                  [ txt "EDIT CONFIG" ];
+                (if config.typ = `Custom then
+                   a
+                     ~a:
+                       [
+                         a_class [ "edit-button"; "w-button" ];
+                         a_href
+                           (if config.typ = `Default then
+                              "/dashboard/default_config/edit"
+                            else "/dashboard/config/edit/" ^ folder_path);
+                       ]
+                     [ txt "EDIT CONFIG" ]
+                 else a []);
                 (if config.typ = `Custom then
                    form
                      ~a:
@@ -336,6 +338,131 @@ let config_details ?contrib (config : Files_db.config) (folder : Files.Folder.t)
                       ];
                   ];
                 div ~a:[ a_class [ "separator" ] ] [];
+                h4 [ txt "Time Interval" ];
+                div
+                  ~a:[ a_class [ "config-div-in" ] ]
+                  [
+                    div
+                      ~a:[ a_class [ "text-block-16" ] ]
+                      [
+                        txt
+                          "Left bound should be bigger than the right bound, \
+                           as the right bound is the closest time to today. \
+                           (it is in reverse order)";
+                      ];
+                    p [];
+                    p [];
+                    div
+                      ~a:[ a_class [ "config-col"; "w-row" ] ]
+                      [
+                        div
+                          ~a:
+                            [
+                              a_class
+                                [ "config-column-left"; "w-col"; "w-col-10" ];
+                            ]
+                          [
+                            div
+                              ~a:[ a_class [ "config-value-left" ] ]
+                              [ txt "Left Bound" ];
+                          ];
+                        div
+                          ~a:
+                            [
+                              a_class
+                                [ "config-column-right"; "w-col"; "w-col-2" ];
+                            ]
+                          [
+                            div
+                              ~a:[ a_class [ "config-value-right" ] ]
+                              [
+                                (match config.time_left_bound with
+                                | Some s -> s |> string_of_int |> txt
+                                | None -> txt "(default -> 8000)");
+                              ];
+                          ];
+                      ];
+                    div
+                      ~a:[ a_class [ "config-col"; "w-row" ] ]
+                      [
+                        div
+                          ~a:
+                            [
+                              a_class
+                                [ "config-column-left"; "w-col"; "w-col-10" ];
+                            ]
+                          [
+                            div
+                              ~a:[ a_class [ "config-value-left" ] ]
+                              [ txt "Right Bound" ];
+                          ];
+                        div
+                          ~a:
+                            [
+                              a_class
+                                [ "config-column-right"; "w-col"; "w-col-2" ];
+                            ]
+                          [
+                            div
+                              ~a:[ a_class [ "config-value-right" ] ]
+                              [
+                                (match config.time_right_bound with
+                                | Some s -> s |> string_of_int |> txt
+                                | None -> txt "(default -> 0)");
+                              ];
+                          ];
+                      ];
+                  ];
+                div ~a:[ a_class [ "separator" ] ] [];
+                h4 [ txt "Curve" ];
+                div
+                  ~a:[ a_class [ "config-div-in" ] ]
+                  [
+                    div
+                      ~a:[ a_class [ "text-block-16" ] ]
+                      [
+                        p [ txt "The curve to be used for calibration." ];
+                        p [ txt "Of the curves available:" ];
+                        p
+                          [
+                            txt
+                              "'intcal20', 'intcal13', 'intcal13nhpine16', \
+                               'shcal20', 'shcal13', 'shcal13shkauri16', \
+                               ''marine20' and 'marine13'";
+                          ];
+                      ];
+                    div
+                      ~a:[ a_class [ "config-col"; "w-row" ] ]
+                      [
+                        div
+                          ~a:
+                            [
+                              a_class
+                                [ "config-column-left"; "w-col"; "w-col-10" ];
+                            ]
+                          [
+                            div
+                              ~a:[ a_class [ "config-value-left" ] ]
+                              [ txt "Curve" ];
+                          ];
+                        div
+                          ~a:
+                            [
+                              a_class
+                                [ "config-column-right"; "w-col"; "w-col-2" ];
+                            ]
+                          [
+                            div
+                              ~a:[ a_class [ "config-value-right" ] ]
+                              [
+                                (match config.curve with
+                                | Some s -> txt s
+                                | None -> txt "(default -> intcal20)");
+                              ];
+                          ];
+                      ];
+                  ];
+                div ~a:[ a_class [ "separator" ] ] [];
                 h4 [ txt "Filtering" ];
                 div
                   ~a:[ a_class [ "config-div-in" ] ]
@@ -463,6 +590,18 @@ let config _request =
         ];
     ]
 
+let curves =
+  [
+    "intcal20";
+    "intcal13";
+    "intcal13nhpine16";
+    "shcal20";
+    "shcal13";
+    "shcal13shkauri16";
+    "marine13";
+    "marine20";
+  ]
+
 let edit_content ?contrib_id (folder : Files.Folder.t) (scripts : string list)
     (config : Files_db.config) request =
   let folder_path =
@@ -559,14 +698,85 @@ let edit_content ?contrib_id (folder : Files.Folder.t) (scripts : string list)
                           a_required ();
                         ]
                       ();
+                    h4 [ txt "Time Interval" ];
+                    div
+                      ~a:[ a_class [ "text-block-15" ] ]
+                      [
+                        p
+                          [
+                            txt
+                              "Left bound should be bigger than the right \
+                               bound, as the right bound is the closest time \
+                               to today. (it is in reverse order)";
+                          ];
+                        p [ txt "The default is [ 8000, 0 ]" ];
+                      ];
+                    label
+                      ~a:[ a_label_for "time_left_bound" ]
+                      [ txt "Left Bound" ];
+                    input
+                      ~a:
+                        [
+                          a_class [ "user-edit-form-text-field"; "w-input" ];
+                          a_maxlength 256;
+                          a_name "time_left_bound";
+                          begin
+                            match config.time_left_bound with
+                            | Some s -> s |> string_of_int |> a_value
+                            | None -> a_placeholder "8000"
+                          end;
+                          a_input_type `Number;
+                          a_id "time_left_bound";
+                        ]
+                      ();
+                    label
+                      ~a:[ a_label_for "time_right_bound" ]
+                      [ txt "Right Bound" ];
+                    input
+                      ~a:
+                        [
+                          a_class [ "user-edit-form-text-field"; "w-input" ];
+                          a_maxlength 256;
+                          a_name "time_right_bound";
+                          begin
+                            match config.time_right_bound with
+                            | Some s -> s |> string_of_int |> a_value
+                            | None -> a_placeholder "0"
+                          end;
+                          a_input_type `Number;
+                          a_id "time_right_bound";
+                        ]
+                      ();
+                    h4 [ txt "Curve" ];
+                    select
+                      ~a:
+                        [
+                          a_id "curve";
+                          a_name "curve";
+                          a_required ();
+                          a_class [ "select-field"; "w-select" ];
+                        ]
+                      (List.map
+                         (fun curve ->
+                           option
+                             ~a:
+                               (if Some curve = config.curve then
+                                  [ a_value curve; a_selected () ]
+                                else [ a_value curve ])
+                             (txt curve))
+                         curves);
                     h4 [ txt "Filtering" ];
                     div
                       ~a:[ a_class [ "text-block-15" ] ]
                       [
-                        txt
-                          "You can either have no filtering (empty fields), or \
-                           filtering on a specific column and row (both fields \
-                           filled).";
+                        p
+                          [
+                            txt
+                              "You can either have no filtering (empty \
+                               fields), or filtering on a specific column and \
+                               row (both fields filled).";
+                          ];
+                        p [ txt "The default is no filtering." ];
                       ];
                     label ~a:[ a_label_for "column" ] [ txt "Column" ];
                     input
@@ -778,6 +988,79 @@ let add ?contrib_id (folder : Files.Folder.t) (scripts : string list) request =
                                                 a_required ();
                                               ]
                                             ();
+                                          h4 [ txt "Time Interval" ];
+                                          div
+                                            ~a:[ a_class [ "text-block-15" ] ]
+                                            [
+                                              p
+                                                [
+                                                  txt
+                                                    "Left bound should be \
+                                                     bigger than the right \
+                                                     bound, as the right bound \
+                                                     is the closest time to \
+                                                     today. (it is in reverse \
+                                                     order)";
+                                                ];
+                                              p
+                                                [
+                                                  txt
+                                                    "The default is [ 8000, 0 ]";
+                                                ];
+                                            ];
+                                          label
+                                            ~a:[ a_label_for "time_left_bound" ]
+                                            [ txt "Left Bound" ];
+                                          input
+                                            ~a:
+                                              [
+                                                a_class
+                                                  [
+                                                    "user-edit-form-text-field";
+                                                    "w-input";
+                                                  ];
+                                                a_maxlength 256;
+                                                a_name "time_left_bound";
+                                                a_input_type `Number;
+                                                a_id "time_left_bound";
+                                                a_value "8000";
+                                              ]
+                                            ();
+                                          label
+                                            ~a:
+                                              [ a_label_for "time_right_bound" ]
+                                            [ txt "Right Bound" ];
+                                          input
+                                            ~a:
+                                              [
+                                                a_class
+                                                  [
+                                                    "user-edit-form-text-field";
+                                                    "w-input";
+                                                  ];
+                                                a_maxlength 256;
+                                                a_name "time_right_bound";
+                                                a_input_type `Number;
+                                                a_id "time_right_bound";
+                                                a_value "0";
+                                              ]
+                                            ();
+                                          h4 [ txt "Curve" ];
+                                          select
+                                            ~a:
+                                              [
+                                                a_id "curve";
+                                                a_name "curve";
+                                                a_required ();
+                                                a_class
+                                                  [ "select-field"; "w-select" ];
+                                              ]
+                                            (List.map
+                                               (fun curve ->
+                                                 option
+                                                   ~a:[ a_value curve ]
+                                                   (txt curve))
+                                               curves);
                                           h4 [ txt "Filtering" ];
                                           div
                                             ~a:[ a_class [ "text-block-15" ] ]

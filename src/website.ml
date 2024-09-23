@@ -17,7 +17,7 @@ let handler =
            Dream.get "/logout" @@ Handlers.General.Post.logout;
            (* ADMIN *)
            Dream.scope "/dashboard"
-             [ Session.admin_middleware ] (* Users *)
+             [ Handlers.Session.admin_middleware ] (* Users *)
              [
                (* GET *)
                Dream.get "/users" @@ Handlers.Users.Get.users;
@@ -30,28 +30,30 @@ let handler =
                Dream.post "/users/:email/remove" @@ Handlers.Users.Post.remove;
              ];
            Dream.scope "/dashboard"
-             [ Session.admin_and_contrib_middleware ] (* Config *)
+             [ Handlers.Session.admin_middleware ] (* Contributions *)
+             [
+               (* GET *)
+               Dream.get "/contributions"
+               @@ Handlers.Contributions.Get.admin_view
+                    "/dashboard/get-all-contribs";
+             ];
+           (* ADMIN OR CONTRIBUTION *)
+           Dream.scope "/dashboard"
+             [ Handlers.Session.admin_or_contrib_middleware ] (* Config *)
              [
                (* GET *)
                Dream.get "/config/add/**" @@ Handlers.Configs.Get.add;
                Dream.get "/config/edit/**"
                @@ Handlers.Configs.Get.edit "/dashboard/get-config-edit";
-               Dream.get "/default_config/edit"
-               @@ Handlers.Configs.Get.edit_default
-                    "/dashboard/get-default-config-edit";
                (* PROMISES *)
                Dream.get "/get-config-edit/**" @@ Handlers.Configs.Promises.edit;
-               Dream.get "/get-default-config-edit"
-               @@ Handlers.Configs.Promises.edit_default;
                (* POST *)
                Dream.post "/config/add/**" @@ Handlers.Configs.Post.add;
                Dream.post "/config/edit/**" @@ Handlers.Configs.Post.edit;
                Dream.post "/config/remove/**" @@ Handlers.Configs.Post.remove;
-               Dream.post "/default_config/edit"
-               @@ Handlers.Configs.Post.edit_default;
              ];
            Dream.scope "/dashboard"
-             [ Session.admin_and_contrib_middleware ] (* Files *)
+             [ Handlers.Session.admin_or_contrib_middleware ] (* Files *)
              [
                Dream.get "/add-file/**" @@ Handlers.Files.Get.add;
                Dream.post "/add-file/**" @@ Handlers.Files.Post.add;
@@ -70,7 +72,8 @@ let handler =
                Dream.get "/get-edit-file/**" @@ Handlers.Files.Promises.edit;
              ];
            (* EVERYONE *)
-           Dream.scope "/dashboard" [ Session.all_middleware ]
+           Dream.scope "/dashboard"
+             [ Handlers.Session.all_middleware ]
              (* PAGES *)
              [
                (* Dashboard*)
@@ -89,9 +92,15 @@ let handler =
                (* Contributions *)
                Dream.get "/add-contrib" @@ Handlers.Contributions.Get.add;
                Dream.post "/add-contrib" @@ Handlers.Contributions.Post.add;
+               Dream.post "/submit-contrib/:id"
+               @@ Handlers.Contributions.Post.submit;
+               Dream.post "/accept-contrib/:id"
+               @@ Handlers.Contributions.Post.accept;
+               Dream.post "/reject-contrib/:id"
+               @@ Handlers.Contributions.Post.reject;
              ];
            Dream.scope "/dashboard"
-             [ Session.all_middleware ] (* PROMISES *)
+             [ Handlers.Session.all_middleware ] (* PROMISES *)
              [
                (* Configs *)
                Dream.get "/get-config/**" @@ Handlers.Configs.Promises.details;
@@ -105,7 +114,9 @@ let handler =
                @@ Handlers.Files.Promises.output_file;
                (* Contributions *)
                Dream.get "/get-contribs"
-               @@ Handlers.General.Promises.contribution_branches;
+               @@ Handlers.Contributions.Promises.from_user;
+               Dream.get "/get-all-contribs"
+               @@ Handlers.Contributions.Promises.all_submitted_merged_rejected;
                (* Status *)
                Dream.get "/get-pipeline-status/topbar"
                @@ Handlers.General.Promises.pipeline_status_topbar;

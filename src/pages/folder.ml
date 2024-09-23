@@ -1,6 +1,6 @@
 (* open Radiocarbon_lib *)
 
-let add path request =
+let add ?contrib_id path request =
   let path = if path = "" then "/" else path in
   let open Tyxml.Html in
   General.sidebar "NEW FOLDER" ""
@@ -64,7 +64,9 @@ let add path request =
                                             a_class [ "form-2" ];
                                             a_aria "label" [ "Email Form" ];
                                             a_action
-                                              ("/dashboard/add-folder/" ^ path);
+                                              ("/dashboard/add-folder/" ^ path
+                                              |> Utils.contrib_query contrib_id
+                                              );
                                           ]
                                         [
                                           Unsafe.data (Dream.csrf_tag request);
@@ -109,7 +111,7 @@ let add path request =
         ];
     ]
 
-let rename old_name path request =
+let rename ?contrib_id old_name path request =
   let open Tyxml.Html in
   General.sidebar "RENAME FOLDER" ""
   @ [
@@ -173,7 +175,9 @@ let rename old_name path request =
                                             a_aria "label" [ "Email Form" ];
                                             a_action
                                               ("/dashboard/rename-folder/"
-                                             ^ path);
+                                               ^ path
+                                              |> Utils.contrib_query contrib_id
+                                              );
                                           ]
                                         [
                                           Unsafe.data (Dream.csrf_tag request);

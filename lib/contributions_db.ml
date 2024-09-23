@@ -20,13 +20,13 @@ let store id title email folder_name status :
     Ok v
   else Error "A contribution with that ID already exists!" |> Lwt.return
 
-let update id new_title : (Contributions.t, string) result Lwt.t =
+let update id new_status : (Contributions.t, string) result Lwt.t =
   let* repo = Store.Repo.v Db_config.Contributions.c in
   let* t = Store.main repo in
   let* b = Store.mem t [ id ] in
   if b then
     let* u = Store.get t [ id ] in
-    let contr = { u with title = new_title } in
+    let contr = { u with status = new_status } in
     let* () =
       Store.set_exn t ~info:(Db_config.Users.info "Updating...") [ id ] contr
     in

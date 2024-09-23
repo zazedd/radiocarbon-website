@@ -1,8 +1,8 @@
 let dashboard_files ?contrib inputs request =
   Dashboard.dashboard_files ~contrib request inputs
 
-let contributions contribs request =
-  [ Dashboard.contributions request contribs ]
+let contributions ~fn contribs request user =
+  [ Contribution.contributions ~fn request contribs user ]
 
 let config_details ?contrib config folder request user =
   Config.config_details ?contrib config folder user request

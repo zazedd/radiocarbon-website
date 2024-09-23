@@ -75,7 +75,7 @@ let rec tree_to_html ~contrib (tree : Files.Folder.t) (counter : int) () :
               ~a:
                 [
                   a_href
-                    ("/dashboard" ^ Fpath.to_string path
+                    ("/dashboard/" ^ Fpath.to_string path
                     |> Utils.contrib_query contrib);
                   a_class [ "file"; "w-dropdown-link" ];
                   a_style ("background-color: " ^ color_from_counter counter);
@@ -188,45 +188,6 @@ let dashboard_files ?(contrib = None) _request (inputs : Files.Folder.t) =
       end;
   ]
 
-let contributions _request (contribs : Contributions.t list) =
-  let open Tyxml.Html in
-  let open Contributions in
-  let redir id =
-    a
-      ~a:
-        [
-          a_href
-            ("/dashboard" |> Utils.add_contribution_query (id |> string_of_int));
-        ]
-  in
-  let contribution (contrib : Contributions.t) =
-    tr
-      ~a:[ a_class [ "contribution-table" ] ]
-      [
-        td
-          ~a:[ a_class [ "contributions-left" ] ]
-          [ redir contrib.id [ txt ("#" ^ string_of_int contrib.id) ] ];
-        td ~a:[ a_class [ "contributions-middle" ] ] [ txt contrib.title ];
-        td
-          ~a:[ a_class [ "contributions-right" ] ]
-          [
-            span ~a:[ a_style "color: grey" ] [ txt "By: " ]; txt contrib.email;
-          ];
-      ]
-  in
-  let unmerged =
-    contribs
-    |> List.filter (fun c -> match c.status with `Merged -> false | _ -> true)
-  in
-  if List.length unmerged = 0 then no_more_items_no_btn ()
-  else
-    div
-      [
-        table
-          ~a:[ a_style "border-collapse: collapse; width: 100%;" ]
-          (unmerged |> List.map contribution);
-      ]
-
 let dashboard _request (user : User.t_no_pw) =
   let open Tyxml.Html in
   sidebar user
@@ -328,10 +289,7 @@ let dashboard _request (user : User.t_no_pw) =
                                 [
                                   div
                                     ~a:[ a_class [ "panel-name" ] ]
-                                    [ txt "contributions" ];
-                                  div
-                                    ~a:[ a_class [ "panel-filter" ] ]
-                                    [ txt "(external)" ];
+                                    [ txt "your contributions" ];
                                 ];
                               a
                                 ~a:

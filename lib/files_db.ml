@@ -3,12 +3,16 @@ open Lwt.Infix
 
 let branch = Db_config.branch
 let inputs = Db_config.inputs
+let outputs = Db_config.outputs
 let scripts_folder = Db_config.scripts
 let config = Db_config.config
 
 type config = {
   step : int;
   confidence : float;
+  time_left_bound : int option;
+  time_right_bound : int option;
+  curve : string option;
   column : string option;
   value : string option;
   script : string;
@@ -32,11 +36,25 @@ let parse_config s typ =
     | _ -> assert false
   in
   match s |> String.trim |> String.split_on_char '\n' with
-  | [ step; confidence; column; value; script ] ->
+  | [
+   step;
+   confidence;
+   time_left_bound;
+   time_right_bound;
+   curve;
+   column;
+   value;
+   script;
+  ] ->
       {
         step = extract_value step "step" int_of_string |> Option.get;
         confidence =
           extract_value confidence "confidence" float_of_string |> Option.get;
+        time_left_bound =
+          extract_value time_left_bound "time_left_bound" int_of_string;
+        time_right_bound =
+          extract_value time_right_bound "time_right_bound" int_of_string;
+        curve = extract_value curve "curve" (fun x -> x);
         column = extract_value column "column" (fun x -> x);
         value = extract_value value "value" (fun x -> x);
         script = extract_value script "script" (fun x -> x) |> Option.get;
@@ -44,12 +62,26 @@ let parse_config s typ =
       }
   | _ -> failwith "Failed to parse config"
 
-let create_config step confidence column value script =
+let create_config step confidence time_left_bound time_right_bound curve column
+    value script =
   let column, value =
     (Option.value ~default:"" column, Option.value ~default:"" value)
   in
-  Format.sprintf "step=%d\nconfidence=%.02f\ncolumn=%s\nvalue=%s\nscript=%s"
-    step confidence column value script
+  let time_left_bound, time_right_bound =
+    ( Option.map string_of_int time_left_bound |> Option.value ~default:"",
+      Option.map string_of_int time_right_bound |> Option.value ~default:"" )
+  in
+  let curve = Option.value ~default:"" curve in
+  Format.sprintf
+    "step=%d\n\
+     confidence=%.02f\n\
+     time_left_bound=%s\n\
+     time_right_bound=%s\n\
+     curve=%s\n\
+     column=%s\n\
+     value=%s\n\
+     script=%s"
+    step confidence time_left_bound time_right_bound curve column value script
 
 let fetch branch =
   Files.ctx () >>= fun ctx ->
@@ -72,21 +104,23 @@ let branch_names () =
   | Ok _ -> Ok (Files.Store.Branch.list repo)
   | Error _ as err -> err
 
-let add_branch ~name =
+let add_branch ~name ~folder_name =
   fetch Db_config.branch >>= fun (node, repo) ->
   match node with
   | Ok _ -> begin
-      let* () =
-        Files.Store.main repo >>= Files.Store.Head.get
-        >>= Files.Store.Branch.set repo name
-      in
-      push name
-      >|= begin
-            function
-            | Ok () -> Ok (node, repo)
-            | Error (`Msg msg) -> Error msg
-            | Error `Detached_head -> Error "Detached head"
-          end
+      let* t = Files.Store.main repo in
+      let* c = Files.Store.kind t [ inputs; folder_name ] in
+      if c = Some `Node then
+        Error "A folder with that name already exists!" |> Lwt.return
+      else
+        let* () = Files.Store.Head.get t >>= Files.Store.Branch.set repo name in
+        push name
+        >|= begin
+              function
+              | Ok () -> Ok (node, repo)
+              | Error (`Msg msg) -> Error msg
+              | Error `Detached_head -> Error "Detached head"
+            end
     end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
@@ -187,7 +221,7 @@ let find_earliest_commit_with_file ?(branch = branch) ~path (node, repo) =
     end
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let historic_input_config_and_script ~in_where ~out_where ~name np =
+let historic_input_config_and_script ~branch ~in_where ~out_where ~name np =
   let input_file =
     let name =
       (* name.script.date.csv *)
@@ -216,7 +250,7 @@ let historic_input_config_and_script ~in_where ~out_where ~name np =
   in
   let output_file = out_where @ [ name ] in
   let config_file = in_where @ [ config ] in
-  find_earliest_commit_with_file ~path:output_file np >>= function
+  find_earliest_commit_with_file ~branch ~path:output_file np >>= function
   | Ok commit -> begin
       Files.Store.of_commit commit >>= fun t ->
       let+ config =
@@ -233,13 +267,17 @@ let historic_input_config_and_script ~in_where ~out_where ~name np =
 
 (* SETS / REMOVES / UPDATES *)
 
-let add_config ?(branch = branch) ~user_email ~path ~step ~confidence ~column
-    ~value ~script (node, repo) =
+let add_config ?(branch = branch) ~user_email ~path ~step ~confidence
+    ~time_left_bound ~time_right_bound ~curve ~column ~value ~script (node, repo)
+    =
   let config_path = path @ [ "config" ] in
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
-      let config = create_config step confidence column value script in
+      let config =
+        create_config step confidence time_left_bound time_right_bound curve
+          column value script
+      in
       let* c = Files.Store.kind t path in
       if c = Some `Node then
         Files.Store.set t
@@ -258,12 +296,16 @@ let add_config ?(branch = branch) ~user_email ~path ~step ~confidence ~column
       else Error "Parent directory does not exist" |> Lwt.return
   | Error (`Msg msg) -> Error msg |> Lwt.return
 
-let update_config ?(branch = branch) ~user_email ~path ~step ~confidence ~column
-    ~value ~script (node, repo) =
+let update_config ?(branch = branch) ~user_email ~path ~step ~confidence
+    ~time_left_bound ~time_right_bound ~curve ~column ~value ~script (node, repo)
+    =
   match node with
   | Ok _ ->
       let* t = Files.Store.of_branch repo branch in
-      let config = create_config step confidence column value script in
+      let config =
+        create_config step confidence time_left_bound time_right_bound curve
+          column value script
+      in
       let* c = Files.Store.mem t path in
       if c then
         Files.Store.set t
@@ -554,4 +596,58 @@ let remove_file ?(branch = branch) ~user_email ~in_where ~out_where ~name
                   | Error `Detached_head -> Error "Detached head"
                 end
       else Error "Parent directory does not exist" |> Lwt.return
+  | Error (`Msg msg) -> Error msg |> Lwt.return
+
+(* this will add the new folder from the contribution into the main branch, and not the rest,
+   as it could have been created before deleting some inputs
+*)
+let merge_branches ~into ~from ~name ~user_email (node, repo) =
+  match node with
+  | Ok _ -> begin
+      let* into_t = Files.Store.of_branch repo into
+      and* from_t = Files.Store.of_branch repo from in
+      let* into_tree = Files.Store.tree into_t
+      and* from_tree = Files.Store.tree from_t in
+      let* into_tree_folder_kind =
+        Files.Store.Tree.kind into_tree [ inputs; name ]
+      and* from_tree_input_folder =
+        Files.Store.Tree.get_tree from_tree [ inputs; name ]
+      and* from_tree_output_folder =
+        Files.Store.Tree.get_tree from_tree [ outputs; name ]
+      in
+      match into_tree_folder_kind with
+      | Some `Node ->
+          Error
+            "A folder with that name already exists, this should not happen!"
+          |> Lwt.return
+      | None -> begin
+          let* tree =
+            Files.Store.Tree.add_tree into_tree [ inputs; name ]
+              from_tree_input_folder
+            >>= fun tree ->
+            Files.Store.Tree.add_tree tree [ outputs; name ]
+              from_tree_output_folder
+          in
+          Files.Store.set_tree_exn
+            ~info:
+              (Db_config.Pipeline.info
+                 "Merging branches %s and %s (input folder)" into from
+                 user_email)
+            into_t [] tree
+          >>= fun () ->
+          push branch
+          >|= begin
+                function
+                | Ok () -> Ok ()
+                | Error (`Msg msg) -> Error msg
+                | Error `Detached_head -> Error "Detached head"
+              end
+        end
+      | _ ->
+          let msg =
+            "The folder name is the same as an existing file. Not able to \
+             merge."
+          in
+          Error msg |> Lwt.return
+    end
   | Error (`Msg msg) -> Error msg |> Lwt.return

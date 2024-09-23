@@ -923,6 +923,10 @@ label {
   height: 20px;
 }
 
+.nav-icon-2 {
+  height: 15px;
+}
+
 .plus-h {
   z-index: 9;
   background-color: #313131;
@@ -2422,4 +2426,18 @@ label {
   padding-right: 10px;
   color: black;
   text-align: right;
+}
+
+.black_svg {
+  -webkit-filter: invert(100%);
+  filter: invert(100%);
+}
+
+.contrib-info-text {
+  margin: auto;
+  margin-right: 15px;
+}
+
+.text-block-16 {
+  margin-bottom: 25px;
 }

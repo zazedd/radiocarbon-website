@@ -6,9 +6,13 @@ type t = {
   title : string;
   email : string;
   folder_name : string; (* each contribution pushes to a designated folder *)
-  status : [ `Unmerged | `Merged | `Restored ];
+  status : [ `Unmerged | `Merged | `Submitted | `Rejected | `Restored ];
       (* could be in a normal state (unmerged or merged)
          or restored from GitHub. (deleted from database)
+
+         Submitted means that the contributor has submitted
+         the contribution to review
+
          If restored, email and title are lost, and it is
          effectively unmerged as branches get deleted
       *)
@@ -24,11 +28,13 @@ let compare t1 t2 = compare t2.id t1.id (* newer first *)
 let string_of_status = function
   | `Unmerged -> "Unmerged"
   | `Merged -> "Merged"
+  | `Submitted -> "Submitted"
   | `Restored -> "Restored"
 
 let status_of_string = function
   | "Unmerged" -> `Unmerged
   | "Merged" -> `Merged
+  | "Submitted" -> `Submitted
   | "Restored" -> `Restored
   | _ -> assert false
 

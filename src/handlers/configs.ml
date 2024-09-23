@@ -8,10 +8,9 @@ module Get = struct
     let[@alert "-deprecated"] path_request = Dream.path request in
     let* _, contrib = branch_and_contrib_from_query request in
     match contrib with
-    | Some (Ok contrib) -> begin
+    | (Some (Ok _) | None) as c -> begin
         let resource_path =
-          get_resource_path resource_path path_request
-          |> add_contribution_query (contrib.id |> string_of_int)
+          resource_path_with_query resource_path path_request c
         in
         let extra_scripts =
           [
@@ -20,31 +19,22 @@ module Get = struct
           ]
         in
         Pages.config request
-        |> serve ~contrib ~extra_scripts "Radiocarbon Calibration"
+        |> serve ?contrib ~extra_scripts "Radiocarbon Calibration"
       end
     | Some (Error msg) -> Pages.error ~msg request |> serve msg
-    | None ->
-        let resource_path = get_resource_path resource_path path_request in
-        let extra_scripts =
-          [
-            Pages.Scripts.loader ~extra_action:"confirm ()" resource_path;
-            Pages.Scripts.confirm;
-          ]
-        in
-        Pages.config request |> serve ~extra_scripts "Radiocarbon Calibration"
 
   let add request =
     let[@alert "-deprecated"] path = Dream.path request in
     let* branch, contrib = branch_and_contrib_from_query request in
     Files_db.fetch branch >>= fun np ->
     match contrib with
-    | Some (Ok contrib) ->
+    | Some (Ok contribution) ->
         let* folder = Files_db.folder ~branch path np in
         Files_db.scripts ~branch scripts np >>= fun scripts ->
         Pages.add_config
-          ~contrib_id:(contrib.id |> string_of_int)
+          ~contrib_id:(contribution.id |> string_of_int)
           folder scripts request
-        |> serve ~contrib "Radiocarbon Calibration"
+        |> serve ?contrib "Radiocarbon Calibration"
     | None ->
         let* folder = Files_db.folder ~branch path np in
         Files_db.scripts ~branch scripts np >>= fun scripts ->
@@ -56,14 +46,14 @@ module Get = struct
     let[@alert "-deprecated"] path = Dream.path request in
     let* _, contrib = branch_and_contrib_from_query request in
     match contrib with
-    | Some (Ok contrib) ->
+    | Some (Ok contribution) ->
         let resource_path =
           get_resource_path resource_path path
-          |> add_contribution_query (contrib.id |> string_of_int)
+          |> add_contribution_query (contribution.id |> string_of_int)
         in
         let extra_scripts = [ Pages.Scripts.loader resource_path ] in
         Pages.edit_config request
-        |> serve ~contrib ~extra_scripts "Radiocarbon Calibration"
+        |> serve ?contrib ~extra_scripts "Radiocarbon Calibration"
     | Some (Error msg) -> Pages.error ~msg request |> serve msg
     | None ->
         let resource_path = get_resource_path resource_path path in
@@ -100,24 +90,36 @@ module Post = struct
             [
               ("column", column);
               ("confidence", confidence);
+              ("curve", curve);
               ("script", script);
               ("step", step);
+              ("time_left_bound", time_left_bound);
+              ("time_right_bound", time_right_bound);
               ("value", value);
-            ] -> (
+            ] -> begin
             let step = step |> int_of_string
             and confidence = confidence |> float_of_string
+            and time_left_bound =
+              if time_left_bound = "" then None
+              else Some (time_left_bound |> int_of_string)
+            and time_right_bound =
+              if time_right_bound = "" then None
+              else Some (time_right_bound |> int_of_string)
+            and curve = if value = "default" then None else Some curve
             and column = if column = "" then None else Some column
             and value = if value = "" then None else Some value in
             Session.grab_session request |> Result.get_ok |> fun user ->
             Files_db.fetch branch
             >>= Files_db.add_config ~branch ~user_email:user.email
-                  ~path:folder_path ~step ~confidence ~column ~value ~script
+                  ~path:folder_path ~step ~confidence ~time_left_bound
+                  ~time_right_bound ~curve ~column ~value ~script
             >>= function
             | Ok _ ->
                 Dream.redirect request
                   ("/dashboard/configs/" ^ path_str
                   |> redirect_from_query request)
-            | Error msg -> Pages.error ~msg request |> serve msg)
+            | Error msg -> Pages.error ~msg request |> serve msg
+          end
         | _ -> Dream.empty `Bad_Request
       end
     | Some (Error msg) -> Pages.error ~msg request |> serve msg
@@ -134,51 +136,39 @@ module Post = struct
             [
               ("column", column);
               ("confidence", confidence);
+              ("curve", curve);
               ("script", script);
               ("step", step);
+              ("time_left_bound", time_left_bound);
+              ("time_right_bound", time_right_bound);
               ("value", value);
-            ] -> (
+            ] -> begin
             let step = step |> int_of_string
             and confidence = confidence |> float_of_string
+            and time_left_bound =
+              if time_left_bound = "default" then None
+              else Some (time_left_bound |> int_of_string)
+            and time_right_bound =
+              if time_right_bound = "default" then None
+              else Some (time_right_bound |> int_of_string)
+            and curve = if value = "default" then None else Some curve
             and column = if column = "" then None else Some column
             and value = if value = "" then None else Some value in
             Session.grab_session request |> Result.get_ok |> fun user ->
             Files_db.fetch branch
             >>= Files_db.update_config ~branch ~user_email:user.email
-                  ~path:config_path ~step ~confidence ~column ~value ~script
+                  ~path:config_path ~step ~confidence ~time_left_bound
+                  ~time_right_bound ~curve ~column ~value ~script
             >>= function
             | Ok _ ->
                 Dream.redirect request
                   ("/dashboard/configs/" ^ path_str
                   |> redirect_from_query request)
-            | Error msg -> Pages.error ~msg request |> serve msg)
+            | Error msg -> Pages.error ~msg request |> serve msg
+          end
         | _ -> Dream.empty `Bad_Request
       end
     | Some (Error msg) -> Pages.error ~msg request |> serve msg
-
-  let edit_default request : Dream.response Lwt.t =
-    let config_path = [ "config" ] in
-    match%lwt Dream.form request with
-    | `Ok
-        [
-          ("column", column);
-          ("confidence", confidence);
-          ("script", script);
-          ("step", step);
-          ("value", value);
-        ] -> (
-        let step = step |> int_of_string
-        and confidence = confidence |> float_of_string
-        and column = if column = "" then None else Some column
-        and value = if value = "" then None else Some value in
-        Session.grab_session request |> Result.get_ok |> fun user ->
-        Files_db.fetch Files_db.branch
-        >>= Files_db.update_config ~user_email:user.email ~path:config_path
-              ~step ~confidence ~column ~value ~script
-        >>= function
-        | Ok _ -> Dream.redirect request "/dashboard"
-        | Error msg -> Pages.error ~msg request |> serve msg)
-    | _ -> Dream.empty `Bad_Request
 
   let remove request =
     let[@alert "-deprecated"] path = Dream.path request in
@@ -239,6 +229,7 @@ module Promises = struct
     | Some (Error msg) -> Pages.error ~msg request |> respond
 
   let edit_default request =
+    (* contributions cannot change the default configuration *)
     let folder =
       Files.Folder.(Folder { name = ""; path = "." |> Fpath.v; files = [] })
     in

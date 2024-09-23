@@ -53,6 +53,78 @@ let output_config ?(single = false) (config : Files_db.config) =
                 ];
             ];
         ];
+      h4 [ txt "Time Interval" ];
+      div
+        ~a:[ a_class [ "config-div-in" ] ]
+        [
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-8" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-left" ] ]
+                    [ txt "Left Bound" ];
+                ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-4" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [
+                      (match config.time_left_bound with
+                      | Some s -> s |> string_of_int |> txt
+                      | None -> txt "8000 (default)");
+                    ];
+                ];
+            ];
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-8" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-left" ] ]
+                    [ txt "Right Bound" ];
+                ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-4" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [
+                      (match config.time_right_bound with
+                      | Some s -> s |> string_of_int |> txt
+                      | None -> txt "0 (default)");
+                    ];
+                ];
+            ];
+        ];
+      h4 [ txt "Curve" ];
+      div
+        ~a:[ a_class [ "config-div-in" ] ]
+        [
+          div
+            ~a:[ a_class [ "config-col w-row" ] ]
+            [
+              div
+                ~a:[ a_class [ "config-column-left w-col w-col-8" ] ]
+                [ div ~a:[ a_class [ "config-value-left" ] ] [ txt "Curve" ] ];
+              div
+                ~a:[ a_class [ "config-column-right w-col w-col-4" ] ]
+                [
+                  div
+                    ~a:[ a_class [ "config-value-right" ] ]
+                    [
+                      (match config.curve with
+                      | Some s -> txt s
+                      | None -> txt "intcal20 (default)");
+                    ];
+                ];
+            ];
+        ];
       h4 [ txt "Filtering" ];
       div
         ~a:[ a_class [ "config-div-in" ] ]
@@ -96,14 +168,16 @@ let output_config ?(single = false) (config : Files_db.config) =
         ];
     ]
 
-let output_file (name, date, p) =
+let output_file ~contrib_id (name, date, p) =
   li
     ~a:[ a_role [ "listitem" ] ]
     [
       a
         ~a:
           [
-            a_href ("/dashboard/outputs/" ^ Fpath.to_string p);
+            a_href
+              ("/dashboard/outputs/" ^ Fpath.to_string p
+              |> Utils.contrib_query contrib_id);
             a_class [ "w-layout-grid"; "output-file-grid" ];
           ]
         [
@@ -118,7 +192,7 @@ let output_file (name, date, p) =
         ];
     ]
 
-let output_pdf (typ, date, p) =
+let output_pdf ~contrib_id (typ, date, p) =
   li
     ~a:[ a_role [ "listitem" ]; a_class [ "pdf-list-item" ] ]
     [
@@ -128,7 +202,9 @@ let output_pdf (typ, date, p) =
           a
             ~a:
               [
-                a_href ("/dashboard/outputs/" ^ Fpath.to_string p);
+                a_href
+                  ("/dashboard/outputs/" ^ Fpath.to_string p
+                  |> Utils.contrib_query contrib_id);
                 a_class [ "w-layout-grid"; "pdf-list-grid" ];
               ]
             [
@@ -144,7 +220,7 @@ let output_pdf (typ, date, p) =
         ];
     ]
 
-let html_outputs (file : Files.File.t)
+let html_outputs ?contrib_id (file : Files.File.t)
     (configs : (Digestif.SHA1.t, Files_db.config) Hashtbl.t) =
   Hashtbl.fold
     (fun k v acc ->
@@ -167,7 +243,7 @@ let html_outputs (file : Files.File.t)
                 [ txt "CSV OUTPUTS" ];
               ul
                 ~a:[ a_role [ "list" ]; a_class [ "output-file-list" ] ]
-                (List.map output_file csvs);
+                (List.map (output_file ~contrib_id) csvs);
               div
                 ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
                 [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
@@ -183,7 +259,7 @@ let html_outputs (file : Files.File.t)
                         a_role [ "list" ];
                         a_class [ "pdf-list w-list-unstyled" ];
                       ]
-                    (List.map output_file pdfs);
+                    (List.map (output_file ~contrib_id) pdfs);
                 ];
             ]
           in
@@ -199,7 +275,7 @@ let csv (data : string list list) =
   in
   table ~a:[ a_class [ "csv-cells" ] ] (List.map row data)
 
-let file_details path (file : Files.File.t)
+let file_details ~contrib_id path (file : Files.File.t)
     (configs : (Digestif.SHA1.t, Files_db.config) Hashtbl.t) request =
   let first_outputs, other_outputs =
     if Hashtbl.length file.outputs = 0 then
@@ -311,14 +387,18 @@ let file_details path (file : Files.File.t)
                             a
                               ~a:
                                 [
-                                  a_href ("/dashboard/edit-file/" ^ path);
+                                  a_href
+                                    ("/dashboard/edit-file/" ^ path
+                                    |> Utils.contrib_query contrib_id);
                                   a_class [ "edit-file-button"; "w-button" ];
                                 ]
                               [ txt "EDIT" ];
                             form
                               ~a:
                                 [
-                                  a_action ("/dashboard/remove-file/" ^ path);
+                                  a_action
+                                    ("/dashboard/remove-file/" ^ path
+                                    |> Utils.contrib_query contrib_id);
                                   a_method `Post;
                                 ]
                               [
@@ -367,7 +447,7 @@ let file _request =
         ];
     ]
 
-let add folder_path request =
+let add ?contrib_id folder_path request =
   let folder_path_str = if folder_path = "" then "/" else folder_path in
   General.sidebar "FILE" ""
   @ [
@@ -431,7 +511,9 @@ let add folder_path request =
                                             a_aria "label" [ "Email Form" ];
                                             a_action
                                               ("/dashboard/add-file/"
-                                             ^ folder_path);
+                                               ^ folder_path
+                                              |> Utils.contrib_query contrib_id
+                                              );
                                             a_enctype "multipart/form-data";
                                           ]
                                         [
@@ -477,7 +559,7 @@ let add folder_path request =
         ];
     ]
 
-let edit_content path (file : Files.File.t) request =
+let edit_content ?contrib_id path (file : Files.File.t) request =
   [
     div
       ~a:[ a_class [ "card-table" ] ]
@@ -512,7 +594,9 @@ let edit_content path (file : Files.File.t) request =
                           a_id "email-form";
                           a_name "config-form";
                           a_method `Post;
-                          a_action ("/dashboard/edit-file/" ^ path);
+                          a_action
+                            ("/dashboard/edit-file/" ^ path
+                            |> Utils.contrib_query contrib_id);
                           a_class [ "form" ];
                         ]
                       [
