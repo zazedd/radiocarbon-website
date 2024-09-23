@@ -223,17 +223,6 @@ let sidebar name text =
             a
               ~a:
                 [
-                  a_href "/dashboard/files";
-                  a_class [ "db-nav-item"; "w-inline-block" ];
-                ]
-              [
-                img ~alt:"" ~src:"/assets/icons/files.svg"
-                  ~a:[ a_class [ "nav-icon" ] ]
-                  ();
-              ];
-            a
-              ~a:
-                [
                   a_href "/dashboard/contributions";
                   a_class [ "db-nav-item"; "w-inline-block" ];
                 ]
