@@ -30,7 +30,7 @@ module Get = struct
         Pages.Scripts.dropdown;
       ]
     in
-    Pages.contributions_pending request
+    Pages.submited_merged_rejected_contributions request
     |> serve ~extra_scripts "Radiocarbon Calibration"
 end
 

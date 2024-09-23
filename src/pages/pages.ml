@@ -22,5 +22,8 @@ let output = Output.output
 let add_file = File.add
 let contribution = Contribution.contribution
 let add_contribution = Contribution.add
-let contributions_pending request = Contribution.pending_approval request
+
+let submited_merged_rejected_contributions request =
+  Contribution.submited_merged_rejected request
+
 let base ttl bdy extra_script = [ General.base ttl bdy extra_script ]

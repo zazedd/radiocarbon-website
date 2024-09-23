@@ -75,8 +75,8 @@ let contributions ~fn _request (contribs : Contributions.t list)
           (unmerged_sumbitted_from_user |> List.map contribution);
       ]
 
-let pending_approval _request =
-  General.sidebar "PENDING CONTRIBUTIONS" ""
+let submited_merged_rejected _request =
+  General.sidebar "CONTRIBUTIONS" ""
   @ [
       div
         ~a:[ a_class [ "_100vh" ] ]
