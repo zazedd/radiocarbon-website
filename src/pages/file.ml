@@ -168,7 +168,7 @@ let output_config ?(single = false) (config : Files_db.config) =
         ];
     ]
 
-let output_file ~contrib_id (name, date, p) =
+let output_file ~pdf ~contrib_id (name, date, p) =
   li
     ~a:[ a_role [ "listitem" ] ]
     [
@@ -181,7 +181,9 @@ let output_file ~contrib_id (name, date, p) =
             a_class [ "w-layout-grid"; "output-file-grid" ];
           ]
         [
-          div ~a:[ a_class [ "card-lable" ] ] [ txt "SCRIPT" ];
+          div
+            ~a:[ a_class [ "card-lable" ] ]
+            [ (if pdf then txt "TYPE" else txt "SCRIPT") ];
           div
             ~a:[ a_class [ "card-info-text"; "bold"; "output-file-name" ] ]
             [ txt name ];
@@ -243,7 +245,7 @@ let html_outputs ?contrib_id (file : Files.File.t)
                 [ txt "CSV OUTPUTS" ];
               ul
                 ~a:[ a_role [ "list" ]; a_class [ "output-file-list" ] ]
-                (List.map (output_file ~contrib_id) csvs);
+                (List.map (output_file ~pdf:false ~contrib_id) csvs);
               div
                 ~a:[ a_class [ "card-info-row"; "mobile-space" ] ]
                 [ div ~a:[ a_class [ "card-info-wrap" ] ] [] ];
@@ -259,7 +261,7 @@ let html_outputs ?contrib_id (file : Files.File.t)
                         a_role [ "list" ];
                         a_class [ "pdf-list w-list-unstyled" ];
                       ]
-                    (List.map (output_file ~contrib_id) pdfs);
+                    (List.map (output_file ~pdf:true ~contrib_id) pdfs);
                 ];
             ]
           in
